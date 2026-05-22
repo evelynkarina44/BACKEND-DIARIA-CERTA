@@ -1,0 +1,263 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model agendamento {
+  id_agendamento         Int                      @id @default(autoincrement())
+  id_cliente             Int
+  id_diarista            Int
+  data_agendamento       DateTime                 @db.Date
+  observacoes            String?                  @db.Text
+  status                 agendamento_status       @default(Pendente)
+  cliente                cliente                  @relation(fields: [id_cliente], references: [id_cliente], onDelete: NoAction, onUpdate: NoAction, map: "fk_agendamento_cliente")
+  diarista               diarista                 @relation(fields: [id_diarista], references: [id_diarista], onDelete: NoAction, onUpdate: NoAction, map: "fk_agendamento_diarista")
+  agendamento_servico    agendamento_servico[]
+  avaliacao              avaliacao[]
+  checkin_checkout       checkin_checkout[]
+  ocorrencia_agendamento ocorrencia_agendamento[]
+
+  @@index([id_cliente], map: "fk_agendamento_cliente")
+  @@index([id_diarista], map: "fk_agendamento_diarista")
+}
+
+model agendamento_servico {
+  id                                   Int              @id @default(autoincrement())
+  id_agendamento                       Int
+  preco                                Decimal          @db.Decimal(8, 2)
+  diarista_servico_id_diarista_servico Int
+  agendamento                          agendamento      @relation(fields: [id_agendamento], references: [id_agendamento], onDelete: NoAction, onUpdate: NoAction, map: "fk_ag_serv_agendamento")
+  diarista_servico                     diarista_servico @relation(fields: [diarista_servico_id_diarista_servico], references: [id_diarista_servico], onDelete: NoAction, onUpdate: NoAction, map: "fk_agendamento_servico_diarista_servico1")
+
+  @@index([id_agendamento], map: "fk_ag_serv_agendamento")
+  @@index([diarista_servico_id_diarista_servico], map: "fk_agendamento_servico_diarista_servico1_idx")
+}
+
+model avaliacao {
+  id_avaliacao       Int         @id @default(autoincrement())
+  id_agendamento     Int
+  id_cliente         Int
+  id_diarista        Int
+  nota               Decimal     @db.Decimal(2, 1)
+  comentario         String?     @db.Text
+  comentario_publico Boolean?
+  comentario_privado Boolean?
+  agendamento        agendamento @relation(fields: [id_agendamento], references: [id_agendamento], onDelete: NoAction, onUpdate: NoAction, map: "fk_avaliacao_agendamento")
+  cliente            cliente     @relation(fields: [id_cliente], references: [id_cliente], onDelete: NoAction, onUpdate: NoAction, map: "fk_avaliacao_cliente")
+  diarista           diarista    @relation(fields: [id_diarista], references: [id_diarista], onDelete: NoAction, onUpdate: NoAction, map: "fk_avaliacao_diarista")
+
+  @@index([id_agendamento], map: "fk_avaliacao_agendamento")
+  @@index([id_cliente], map: "fk_avaliacao_cliente")
+  @@index([id_diarista], map: "fk_avaliacao_diarista")
+}
+
+model checkin_checkout {
+  id_check         Int                             @id @default(autoincrement())
+  id_agendamento   Int
+  horario_checkin  DateTime                        @db.Timestamp(0)
+  horario_checkout DateTime                        @db.Timestamp(0)
+  status_checkin   checkin_checkout_status_checkin @default(N_o_iniciado)
+  agendamento      agendamento                     @relation(fields: [id_agendamento], references: [id_agendamento], onDelete: NoAction, onUpdate: NoAction, map: "fk_check_agendamento")
+
+  @@index([id_agendamento], map: "fk_check_agendamento")
+}
+
+model cliente {
+  id_cliente      Int                  @id @default(autoincrement())
+  id_usuario      Int
+  data_nascimento DateTime             @db.Date
+  qtd_comodos     Int
+  tamanho_casa    cliente_tamanho_casa @default(pequena)
+  agendamento     agendamento[]
+  avaliacao       avaliacao[]
+  usuario         usuario              @relation(fields: [id_usuario], references: [id_usuario], onDelete: NoAction, onUpdate: NoAction, map: "fk_cliente_usuario")
+  endereco        endereco[]
+  favorito        favorito[]
+
+  @@index([id_usuario], map: "fk_cliente_usuario")
+}
+
+model combo_base {
+  id_combo_base       Int             @id @default(autoincrement())
+  id_diarista         Int
+  nome_combo          String          @db.VarChar(100)
+  valor_base          Decimal         @db.Decimal(8, 2)
+  descricao           String?         @db.Text
+  qtd_comodos_casa    Int
+  atende_casa_pequena Boolean?
+  atende_casa_media   Boolean?
+  atende_casa_grande  Boolean?
+  diarista            diarista        @relation(fields: [id_diarista], references: [id_diarista], onDelete: NoAction, onUpdate: NoAction, map: "fk_combo_diarista")
+  combo_servico       combo_servico[]
+
+  @@index([id_diarista], map: "fk_combo_diarista")
+}
+
+model combo_servico {
+  id_combo_servico Int        @id @default(autoincrement())
+  id_servico       Int
+  id_combo_base    Int
+  combo_base       combo_base @relation(fields: [id_combo_base], references: [id_combo_base], onDelete: NoAction, onUpdate: NoAction, map: "fk_combo_servico_combo")
+  servico          servico    @relation(fields: [id_servico], references: [id_servico], onDelete: NoAction, onUpdate: NoAction, map: "fk_combo_servico_servico")
+
+  @@index([id_combo_base], map: "fk_combo_servico_combo")
+  @@index([id_servico], map: "fk_combo_servico_servico")
+}
+
+model denuncia {
+  id_denuncia                                      Int             @id @default(autoincrement())
+  id_usuario_denunciante                           Int
+  id_usuario_denunciado                            Int
+  motivo                                           denuncia_motivo
+  descricao                                        String?         @db.Text
+  data_denuncia                                    DateTime        @db.Timestamp(0)
+  usuario_denuncia_id_usuario_denunciadoTousuario  usuario         @relation("denuncia_id_usuario_denunciadoTousuario", fields: [id_usuario_denunciado], references: [id_usuario], onDelete: NoAction, onUpdate: NoAction, map: "fk_denuncia_denunciado")
+  usuario_denuncia_id_usuario_denuncianteTousuario usuario         @relation("denuncia_id_usuario_denuncianteTousuario", fields: [id_usuario_denunciante], references: [id_usuario], onDelete: NoAction, onUpdate: NoAction, map: "fk_denuncia_denunciante")
+
+  @@index([id_usuario_denunciado], map: "fk_denuncia_denunciado")
+  @@index([id_usuario_denunciante], map: "fk_denuncia_denunciante")
+}
+
+model diarista {
+  id_diarista              Int                        @id @default(autoincrement())
+  id_usuario               Int
+  descricao                String                     @db.Text
+  frequencia_resposta      String?                    @db.VarChar(50)
+  qtd_max_comodos          Int
+  avaliacao_media          Decimal?                   @db.Decimal(3, 2)
+  agendamento              agendamento[]
+  avaliacao                avaliacao[]
+  combo_base               combo_base[]
+  usuario                  usuario                    @relation(fields: [id_usuario], references: [id_usuario], onDelete: NoAction, onUpdate: NoAction, map: "fk_diarista_usuario")
+  diarista_servico         diarista_servico[]
+  disponibilidade_diarista disponibilidade_diarista[]
+  endereco                 endereco[]
+  favorito                 favorito[]
+
+  @@index([id_usuario], map: "fk_diarista_usuario")
+}
+
+model diarista_servico {
+  id_diarista_servico  Int                   @id @default(autoincrement())
+  id_diarista          Int
+  id_servico           Int
+  preco                Decimal               @db.Decimal(8, 2)
+  faz_parte_combo_base Boolean?
+  agendamento_servico  agendamento_servico[]
+  diarista             diarista              @relation(fields: [id_diarista], references: [id_diarista], onDelete: NoAction, onUpdate: NoAction, map: "fk_ds_diarista")
+  servico              servico               @relation(fields: [id_servico], references: [id_servico], onDelete: NoAction, onUpdate: NoAction, map: "fk_ds_servico")
+
+  @@index([id_diarista], map: "fk_ds_diarista")
+  @@index([id_servico], map: "fk_ds_servico")
+}
+
+model disponibilidade_diarista {
+  id_agenda      Int      @id @default(autoincrement())
+  id_diarista    Int
+  dia_semana     DateTime @db.Date
+  horario_inicio DateTime @db.Time(0)
+  disponivel     Boolean
+  diarista       diarista @relation(fields: [id_diarista], references: [id_diarista], onDelete: NoAction, onUpdate: NoAction, map: "fk_disponibilidade_diarista")
+
+  @@index([id_diarista], map: "fk_disponibilidade_diarista")
+}
+
+model endereco {
+  id_endereco Int      @id @default(autoincrement())
+  id_diarista Int
+  id_cliente  Int
+  bairro      String   @db.VarChar(100)
+  cep         String   @db.VarChar(9)
+  logradouro  String   @db.VarChar(150)
+  numero      Int
+  complemento String?  @db.VarChar(100)
+  cidade      String   @db.VarChar(100)
+  estado      String   @db.Char(2)
+  referencia  String?  @db.VarChar(150)
+  cliente     cliente  @relation(fields: [id_cliente], references: [id_cliente], onDelete: NoAction, onUpdate: NoAction, map: "fk_endereco_cliente")
+  diarista    diarista @relation(fields: [id_diarista], references: [id_diarista], onDelete: NoAction, onUpdate: NoAction, map: "fk_endereco_diarista")
+
+  @@index([id_cliente], map: "fk_endereco_cliente")
+  @@index([id_diarista], map: "fk_endereco_diarista")
+}
+
+model favorito {
+  id_favorito Int      @id @default(autoincrement())
+  id_cliente  Int
+  id_diarista Int
+  cliente     cliente  @relation(fields: [id_cliente], references: [id_cliente], onDelete: NoAction, onUpdate: NoAction, map: "fk_favorito_cliente")
+  diarista    diarista @relation(fields: [id_diarista], references: [id_diarista], onDelete: NoAction, onUpdate: NoAction, map: "fk_favorito_diarista")
+
+  @@index([id_cliente], map: "fk_favorito_cliente")
+  @@index([id_diarista], map: "fk_favorito_diarista")
+}
+
+model ocorrencia_agendamento {
+  id_ocorrencia   Int                           @id @default(autoincrement())
+  id_agendamento  Int
+  motivo          ocorrencia_agendamento_motivo
+  descricao       String?                       @db.Text
+  data_ocorrencia DateTime                      @db.Timestamp(0)
+  agendamento     agendamento                   @relation(fields: [id_agendamento], references: [id_agendamento], onDelete: NoAction, onUpdate: NoAction, map: "fk_ocorrencia_agendamento")
+
+  @@index([id_agendamento], map: "fk_ocorrencia_agendamento")
+}
+
+model servico {
+  id_servico       Int                @id @default(autoincrement())
+  nome_servico     String             @db.VarChar(100)
+  descricao        String?            @db.Text
+  combo_servico    combo_servico[]
+  diarista_servico diarista_servico[]
+}
+
+model usuario {
+  id_usuario                                        Int        @id @default(autoincrement())
+  nome                                              String     @db.VarChar(100)
+  email                                             String     @unique(map: "email") @db.VarChar(100)
+  senha                                             String     @db.VarChar(255)
+  telefone                                          String     @db.VarChar(20)
+  foto_perfil                                       String     @db.VarChar(255)
+  data_cadastro                                     DateTime   @default(now()) @db.Timestamp(0)
+  cliente                                           cliente[]
+  denuncia_denuncia_id_usuario_denunciadoTousuario  denuncia[] @relation("denuncia_id_usuario_denunciadoTousuario")
+  denuncia_denuncia_id_usuario_denuncianteTousuario denuncia[] @relation("denuncia_id_usuario_denuncianteTousuario")
+  diarista                                          diarista[]
+}
+
+enum ocorrencia_agendamento_motivo {
+  cancelamento
+  atraso
+  problema
+  outro
+}
+
+enum denuncia_motivo {
+  spam
+  fraude
+  comportamento_inadequado
+  outro
+}
+
+enum checkin_checkout_status_checkin {
+  N_o_iniciado @map("Não iniciado")
+  Iniciado
+  Finalizado
+  Pago
+}
+
+enum cliente_tamanho_casa {
+  pequena
+  m_dia   @map("média")
+  grande
+}
+
+enum agendamento_status {
+  Aceito
+  Cancelado
+  Pendente
+}
