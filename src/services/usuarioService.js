@@ -1,4 +1,4 @@
-const prima = require('../lib/prisma');
+const prisma = require('../lib/prisma');
 
 class UsuarioService {
     async listarUsuarios() {
