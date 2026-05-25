@@ -25,7 +25,7 @@ class ClienteController {
     }
 
     async criarCliente(req, res) {
-        const { dados } = req.body;
+        const { dados } = req.body || {};
 
         if(dados == undefined || dados == null) {
             return res.status(400).json({ error: 'Dados incorretos' });
@@ -43,7 +43,7 @@ class ClienteController {
 
     async atualizarCliente(req, res) {
         const { id } = req.params;
-        const { dados } = req.body;
+        const { dados } = req.body || {};
 
         if(id == undefined || id == null) {
             return res.status(400).json({ error: 'Id incorreto' });

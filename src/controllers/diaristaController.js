@@ -25,7 +25,7 @@ class DiaristaController {
     }
 
     async criarDiarista(req, res) {
-        const { dados } = req.body;
+        const { dados } = req.body || {};
 
         if(dados == undefined || dados == null) {
             return res.status(400).json({ error: 'Dados incorretos' });
@@ -43,7 +43,7 @@ class DiaristaController {
 
     async atualizarDiarista(req, res) {
         const { id } = req.params;
-        const { dados } = req.body;
+        const { dados } = req.body || {};
 
         if(id == undefined || id == null) {
             return res.status(400).json({ error: 'Id incorreto' });
