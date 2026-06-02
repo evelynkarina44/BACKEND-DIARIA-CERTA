@@ -1,82 +1,67 @@
-const diaristaService = require('../services/diaristaService');
+import { CreateDiaristaService } from '../services/diarista/CreateDiaristaService';
+import { FindDiaristaService } from '../services/diarista/FindDiaristaService';
+import { ListDiaristasService } from '../services/diarista/ListDiaristasService';
+import { UpdateDiaristaService } from '../services/diarista/UpdateDiaristaService';
+import { DeleteDiaristaService } from '../services/diarista/DeleteDiaristaService';
 
-class DiaristaController {
+import { NotFoundError } from "../errors/NotFoundError";
+import { BadRequestError } from '../errors/BadRequestError';
+
+export class DiaristaController {
 
     async listarDiaristas(req, res) {
-        const diaristas = await diaristaService.listarDiaristas();
-        res.json(diaristas);
+        try {
+            const service = new ListDiaristasService();
+            const diaristas = await service.execute();
+            return res.status(200).json(diaristas);
+        } catch (error) {
+            throw new BadRequestError('Erro ao listar diaristas');
+        }
     }
 
-    async buscarDiaristaPorId(req, res) {
-        const { id } = req.params;
-
-        if(id == undefined || id == null) {
-            return res.status(400).json({ error: 'Id incorreto' });
+     async buscarDiaristaPorId(req, res) {
+        try {
+            const { id } = req.params;
+            const service = new FindDiaristaService();
+            const diarista = await service.execute(id);
+            if (!diarista) {
+                throw new NotFoundError('Diarista não encontrado');
+            }
+            return res.status(200).json(diarista);
+        } catch (error) {
+            throw new BadRequestError('Erro ao buscar diarista');
         }
-
-        const diarista = await diaristaService.buscarDiaristaPorId(id);
-
-        if (!diarista) {
-            return res.status(404).json({
-                 erro: 'Diarista não encontrada' });
-        }
-
-        return res.json(diarista);
     }
 
-    async criarDiarista(req, res) {
-        const { dados } = req.body || {};
-
-        if(dados == undefined || dados == null) {
-            return res.status(400).json({ error: 'Dados incorretos' });
+    async createDiarista(req, res) {
+        try {
+            const service = new CreateDiaristaService();
+            const diarista = await service.execute(req.validatedData);
+            return res.status(201).json(diarista);
+        } catch (error) {
+            throw new BadRequestError('Erro ao criar diarista');
         }
-        
-        const diarista = await diaristaService.criarDiarista(dados);
-
-        if (!diarista) {
-            return res.status(404).json({
-                 error: 'Erro ao criar diarista' });
-        }
-
-        return res.status(201).json(diarista);
     }
 
-    async atualizarDiarista(req, res) {
-        const { id } = req.params;
-        const { dados } = req.body || {};
-
-        if(id == undefined || id == null) {
-            return res.status(400).json({ error: 'Id incorreto' });
+    async updateDiarista(req, res) {
+        try {
+            const { id } = req.params;
+            const service = new UpdateDiaristaService();
+            const diarista = await service.execute(id, req.validatedData);
+            return res.status(200).json(diarista);
+        } catch (error) {
+            throw new BadRequestError('Erro ao atualizar diarista');
         }
-
-        if(dados == undefined || dados == null) {
-            return res.status(400).json({ error: 'Dados incorretos' });
-        }
-
-        const diarista = await diaristaService.atualizarDiarista(id, dados);
-
-        if (!diarista) {
-            return res.status(404).json({ error: 'Diarista não encontrada' });
-        }
-
-        return res.status(201).json(diarista);
     }
 
-    async deletarDiarista(req, res) {
-        const { id } = req.params;
-
-        if(id == undefined || id == null) {
-            return res.status(400).json({ error: 'Id incorreto' });
+    async deleteDiarista(req, res) {
+        try {
+            const { id } = req.params;
+            const service = new DeleteDiaristaService();
+            const diarista = await service.execute(id);
+            return res.status(200).json(diarista);
+        } catch (error) {
+            throw new BadRequestError('Erro ao excluir diarista');
         }
-
-        const diarista = await diaristaService.deletarDiarista(id);
-
-        if (!diarista) {
-            return res.status(404).json({ error: 'Erro ao deletar diarista' });
-        }
-
-        return res.status(204).send();
     }
 }
-
-module.exports = new DiaristaController();

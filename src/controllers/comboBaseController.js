@@ -1,82 +1,67 @@
-const comboBaseService = require('../services/comboBaseService');
+import { CreateComboBaseService } from '../services/comboBase/CreateComboBaseService';
+import { FindComboBaseService } from '../services/comboBase/FindComboBaseService';
+import { ListComboBasesService } from '../services/comboBase/ListComboBasesService';
+import { UpdateComboBaseService } from '../services/comboBase/UpdateComboBaseService';
+import { DeleteComboBaseService } from '../services/comboBase/DeleteComboBaseService';
 
-class ComboBaseController {
+import { NotFoundError } from "../errors/NotFoundError";
+import { BadRequestError } from '../errors/BadRequestError';
+
+export class ComboBaseController {
 
     async listarComboBases(req, res) {
-        const comboBases = await comboBaseService.listarComboBases();
-        res.json(comboBases);
+        try {
+            const service = new ListComboBasesService();
+            const comboBases = await service.execute();
+            return res.status(200).json(comboBases);
+        } catch (error) {
+            throw new BadRequestError('Erro ao listar combo bases');
+        }
     }
 
     async buscarComboBasePorId(req, res) {
-        const { id } = req.params;
-
-        if(id == undefined || id == null) {
-            return res.status(400).json({ error: 'Id incorreto' });
+        try {
+            const { id } = req.params;
+            const service = new FindComboBaseService();
+            const comboBase = await service.execute(id);
+            if (!comboBase) {
+                throw new NotFoundError('ComboBase não encontrado');
+            }
+            return res.status(200).json(comboBase);
+        } catch (error) {
+            throw new BadRequestError('Erro ao buscar combo base');
         }
-
-        const comboBase = await comboBaseService.buscarComboBasePorId(id);
-
-        if (!comboBase) {
-            return res.status(404).json({
-                 erro: 'Combo base não encontrado' });
-        }
-
-        return res.json(comboBase);
     }
 
-    async criarComboBase(req, res) {
-        const { dados } = req.body || {};
-
-        if(dados == undefined || dados == null) {
-            return res.status(400).json({ error: 'Dados incorretos' });
+    async createComboBase(req, res) {
+        try {
+            const service = new CreateComboBaseService();
+            const comboBase = await service.execute(req.validatedData);
+            return res.status(201).json(comboBase);
+        } catch (error) {
+            throw new BadRequestError('Erro ao criar combo base');
         }
-        
-        const comboBase = await comboBaseService.criarComboBase(dados);
-
-        if (!comboBase) {
-            return res.status(404).json({
-                 error: 'Erro ao criar combo base' });
-        }
-
-        return res.status(201).json(comboBase);
     }
 
-    async atualizarComboBase(req, res) {
-        const { id } = req.params;
-        const { dados } = req.body || {};
-
-        if(id == undefined || id == null) {
-            return res.status(400).json({ error: 'Id incorreto' });
+    async updateComboBase(req, res) {
+        try {
+            const { id } = req.params;
+            const service = new UpdateComboBaseService();
+            const comboBase = await service.execute(id, req.validatedData);
+            return res.status(200).json(comboBase);
+        } catch (error) {
+            throw new BadRequestError('Erro ao atualizar combo base');
         }
-
-        if(dados == undefined || dados == null) {
-            return res.status(400).json({ error: 'Dados incorretos' });
-        }
-
-        const comboBase = await comboBaseService.atualizarComboBase(id, dados);
-
-        if (!comboBase) {
-            return res.status(404).json({ error: 'Combo base não encontrado' });
-        }
-
-        return res.status(201).json(comboBase);
     }
 
-    async deletarComboBase(req, res) {
-        const { id } = req.params;
-
-        if(id == undefined || id == null) {
-            return res.status(400).json({ error: 'Id incorreto' });
+    async deleteComboBase(req, res) {
+        try {
+            const { id } = req.params;
+            const service = new DeleteComboBaseService();
+            const comboBase = await service.execute(id);
+            return res.status(200).json(comboBase);
+        } catch (error) {
+            throw new BadRequestError('Erro ao excluir combo base');
         }
-
-        const comboBase = await comboBaseService.deletarComboBase(id);
-
-        if (!comboBase) {
-            return res.status(404).json({ error: 'Erro ao deletar combo base' });
-        }
-
-        return res.status(204).send();
     }
 }
-
-module.exports = new ComboBaseController();

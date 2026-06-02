@@ -1,82 +1,67 @@
-const clienteService = require('../services/clienteService');
+import { CreateClienteService } from '../services/cliente/CreateClienteService';
+import { FindClienteService } from '../services/cliente/FindClienteService';
+import { ListClientesService } from '../services/cliente/ListClientesService';
+import { UpdateClienteService } from '../services/cliente/UpdateClienteService';
+import { DeleteClienteService } from '../services/cliente/DeleteClienteService';
 
-class ClienteController {
+import { NotFoundError } from "../errors/NotFoundError";
+import { BadRequestError } from '../errors/BadRequestError';
+
+export class ClienteController {
 
     async listarClientes(req, res) {
-        const clientes = await clienteService.listarClientes();
-        res.json(clientes);
+        try {
+            const service = new ListClientesService();
+            const clients = await service.execute();
+            return res.status(200).json(clients);
+        } catch (error) {
+            throw new BadRequestError('Erro ao listar clientes');
+        }
     }
 
     async buscarClientePorId(req, res) {
-        const { id } = req.params;
-
-        if(id == undefined || id == null) {
-            return res.status(400).json({ error: 'Id incorreto' });
+        try {
+            const { id } = req.params;
+            const service = new FindClienteService();
+            const client = await service.execute(id);
+            if (!client) {
+                throw new NotFoundError('Cliente não encontrado');
+            }
+            return res.status(200).json(client);
+        } catch (error) {
+            throw new BadRequestError('Erro ao buscar cliente');
         }
-
-        const cliente = await clienteService.buscarClientePorId(id);
-
-        if (!cliente) {
-            return res.status(404).json({
-                 erro: 'Cliente não encontrado' });
-        }
-
-        return res.json(cliente);
     }
 
-    async criarCliente(req, res) {
-        const { dados } = req.body || {};
-
-        if(dados == undefined || dados == null) {
-            return res.status(400).json({ error: 'Dados incorretos' });
+    async createCliente(req, res) {
+        try {
+            const service = new CreateClienteService();
+            const client = await service.execute(req.validatedData);
+            return res.status(201).json(client);
+        } catch (error) {
+            throw new BadRequestError('Erro ao criar cliente');
         }
-        
-        const cliente = await clienteService.criarCliente(dados);
-
-        if (!cliente) {
-            return res.status(404).json({
-                 error: 'Erro ao criar cliente' });
-        }
-
-        return res.status(201).json(cliente);
     }
 
-    async atualizarCliente(req, res) {
-        const { id } = req.params;
-        const { dados } = req.body || {};
-
-        if(id == undefined || id == null) {
-            return res.status(400).json({ error: 'Id incorreto' });
+    async updateCliente(req, res) {
+        try {
+            const { id } = req.params;
+            const service = new UpdateClienteService();
+            const client = await service.execute(id, req.validatedData);
+            return res.status(200).json(client);
+        } catch (error) {
+            throw new BadRequestError('Erro ao atualizar cliente');
         }
-
-        if(dados == undefined || dados == null) {
-            return res.status(400).json({ error: 'Dados incorretos' });
-        }
-
-        const cliente = await clienteService.atualizarCliente(id, dados);
-
-        if (!cliente) {
-            return res.status(404).json({ error: 'Cliente não encontrado' });
-        }
-
-        return res.status(201).json(cliente);
     }
 
-    async deletarCliente(req, res) {
-        const { id } = req.params;
-
-        if(id == undefined || id == null) {
-            return res.status(400).json({ error: 'Id incorreto' });
+    async deleteCliente(req, res) {
+        try {
+            const { id } = req.params;
+            const service = new DeleteClienteService();
+            const client = await service.execute(id);
+            return res.status(200).json(client);
+        } catch (error) {
+            throw new BadRequestError('Erro ao excluir cliente');
         }
-
-        const cliente = await clienteService.deletarCliente(id);
-
-        if (!cliente) {
-            return res.status(404).json({ error: 'Erro ao deletar cliente' });
-        }
-
-        return res.status(204).send();
     }
 }
-
-module.exports = new ClienteController();

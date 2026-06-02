@@ -1,17 +1,14 @@
-const express = require('express');
+import { express } from 'express';
+import { DiaristaController } from '../controllers/diaristaController';
 
 const router = express.Router();
 
-const diaristaController = require('../controllers/diaristaController');
+router.get('/', DiaristaController.listarDiaristas);
 
-router.get('/', diaristaController.listarDiaristas);
+router.get('/:id', DiaristaController.buscarDiaristaPorId);
 
-router.get('/:id', diaristaController.buscarDiaristaPorId);
+router.post('/', DiaristaController.criarDiarista);
 
-router.post('/', diaristaController.criarDiarista);
+router.put('/:id', DiaristaController.atualizarDiarista);
 
-router.put('/:id', diaristaController.atualizarDiarista);
-
-router.delete('/:id', diaristaController.deletarDiarista);
-
-module.exports = router;
+router.delete('/:id', DiaristaController.deletarDiarista);

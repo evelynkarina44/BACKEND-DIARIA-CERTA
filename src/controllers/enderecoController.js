@@ -1,82 +1,67 @@
-const enderecoService = require('../services/enderecoService');
+import { CreateEnderecoService } from '../services/endereco/CreateEnderecoService';
+import { FindEnderecoService } from '../services/endereco/FindEnderecoService';
+import { ListEnderecosService } from '../services/endereco/ListEnderecosService';
+import { UpdateEnderecoService } from '../services/endereco/UpdateEnderecoService';
+import { DeleteEnderecoService } from '../services/endereco/DeleteEnderecoService';
 
-class EnderecoController {
+import { NotFoundError } from "../errors/NotFoundError";
+import { BadRequestError } from '../errors/BadRequestError';
+
+export class EnderecoController {
 
     async listarEnderecos(req, res) {
-        const enderecos = await enderecoService.listarEnderecos();
-        res.json(enderecos);
+        try {
+            const service = new ListEnderecosService();
+            const enderecos = await service.execute();
+            return res.status(200).json(enderecos);
+        } catch (error) {
+            throw new BadRequestError('Erro ao listar endereços');
+        }
     }
 
-    async buscarEnderecoPorId(req, res) {
-        const { id } = req.params;
-
-        if(id == undefined || id == null) {
-            return res.status(400).json({ error: 'Id incorreto' });
+     async buscarEnderecoPorId(req, res) {
+        try {
+            const { id } = req.params;
+            const service = new FindEnderecoService();
+            const endereco = await service.execute(id);
+            if (!endereco) {
+                throw new NotFoundError('Endereço não encontrado');
+            }
+            return res.status(200).json(endereco);
+        } catch (error) {
+            throw new BadRequestError('Erro ao buscar endereço');
         }
-
-        const endereco = await enderecoService.buscarEnderecoPorId(id);
-
-        if (!endereco) {
-            return res.status(404).json({
-                 erro: 'Endereço não encontrado' });
-        }
-
-        return res.json(endereco);
     }
 
-    async criarEndereco(req, res) {
-        const { dados } = req.body || {};
-
-        if(dados == undefined || dados == null) {
-            return res.status(400).json({ error: 'Dados incorretos' });
+    async createEndereco(req, res) {
+        try {
+            const service = new CreateEnderecoService();
+            const endereco = await service.execute(req.validatedData);
+            return res.status(201).json(endereco);
+        } catch (error) {
+            throw new BadRequestError('Erro ao criar endereço');
         }
-        
-        const endereco = await enderecoService.criarEndereco(dados);
-
-        if (!endereco) {
-            return res.status(404).json({
-                 error: 'Erro ao criar endereço' });
-        }
-
-        return res.status(201).json(endereco);
     }
 
-    async atualizarEndereco(req, res) {
-        const { id } = req.params;
-        const { dados } = req.body || {};
-
-        if(id == undefined || id == null) {
-            return res.status(400).json({ error: 'Id incorreto' });
+    async updateEndereco(req, res) {
+        try {
+            const { id } = req.params;
+            const service = new UpdateEnderecoService();
+            const endereco = await service.execute(id, req.validatedData);
+            return res.status(200).json(endereco);
+        } catch (error) {
+            throw new BadRequestError('Erro ao atualizar endereço');
         }
-
-        if(dados == undefined || dados == null) {
-            return res.status(400).json({ error: 'Dados incorretos' });
-        }
-
-        const endereco = await enderecoService.atualizarEndereco(id, dados);
-
-        if (!endereco) {
-            return res.status(404).json({ error: 'Endereço não encontrado' });
-        }
-
-        return res.status(201).json(endereco);
     }
 
-    async deletarEndereco(req, res) {
-        const { id } = req.params;
-
-        if(id == undefined || id == null) {
-            return res.status(400).json({ error: 'Id incorreto' });
+    async deleteEndereco(req, res) {
+        try {
+            const { id } = req.params;
+            const service = new DeleteEnderecoService();
+            const endereco = await service.execute(id);
+            return res.status(200).json(endereco);
+        } catch (error) {
+            throw new BadRequestError('Erro ao excluir endereço');
         }
-
-        const endereco = await enderecoService.deletarEndereco(id);
-
-        if (!endereco) {
-            return res.status(404).json({ error: 'Erro ao deletar endereço' });
-        }
-
-        return res.status(204).send();
     }
 }
-
-module.exports = new EnderecoController();

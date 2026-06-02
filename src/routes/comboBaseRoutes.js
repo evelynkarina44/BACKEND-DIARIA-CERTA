@@ -1,17 +1,15 @@
-const express = require('express');
+import { express } from 'express';
+import { ComboBaseController } from '../controllers/comboBaseController';
 
-const router = express.Router();
+export const router = express.Router();
 
-const comboBaseController = require('../controllers/comboBaseController');
+router.get('/', ComboBaseController.listarComboBases);
 
-router.get('/', comboBaseController.listarComboBases);
+router.get('/:id', ComboBaseController.buscarComboBasePorId);
 
-router.get('/:id', comboBaseController.buscarComboBasePorId);
+router.post('/', ComboBaseController.criarComboBase);
 
-router.post('/', comboBaseController.criarComboBase);
+router.put('/:id', ComboBaseController.atualizarComboBase);
 
-router.put('/:id', comboBaseController.atualizarComboBase);
+router.delete('/:id', ComboBaseController.deletarComboBase);
 
-router.delete('/:id', comboBaseController.deletarComboBase);
-
-module.exports = router;

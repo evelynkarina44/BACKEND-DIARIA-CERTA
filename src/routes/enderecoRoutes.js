@@ -1,17 +1,14 @@
-const express = require('express');
+import { express } from 'express';
+import { EnderecoController } from '../controllers/enderecoController';
 
 const router = express.Router();
 
-const enderecoController = require('../controllers/enderecoController');
+router.get('/', EnderecoController.listarEnderecos);
 
-router.get('/', enderecoController.listarEnderecos);
+router.get('/:id', EnderecoController.buscarEnderecoPorId);
 
-router.get('/:id', enderecoController.buscarEnderecoPorId);
+router.post('/', EnderecoController.criarEndereco);
 
-router.post('/', enderecoController.criarEndereco);
+router.put('/:id', EnderecoController.atualizarEndereco);
 
-router.put('/:id', enderecoController.atualizarEndereco);
-
-router.delete('/:id', enderecoController.deletarEndereco);
-
-module.exports = router;
+router.delete('/:id', EnderecoController.deletarEndereco);
