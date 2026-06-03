@@ -6,6 +6,7 @@ import { DeleteDiaristaService } from '../services/diarista/DeleteDiaristaServic
 
 import { NotFoundError } from "../errors/NotFoundError";
 import { BadRequestError } from '../errors/BadRequestError';
+import { FindDiaristaByIdUsuarioService } from '../services/diarista/FindDiaristaByIdUsuarioService';
 
 export class DiaristaController {
 
@@ -19,7 +20,7 @@ export class DiaristaController {
         }
     }
 
-     async buscarDiaristaPorId(req, res) {
+    async buscarDiaristaPorId(req, res) {
         try {
             const { id_diarista } = req.params;
             const service = new FindDiaristaService();
@@ -33,10 +34,36 @@ export class DiaristaController {
         }
     }
 
+    async buscarDiaristaPorIdUsuario(req, res) {
+        try {
+            const { id_usuario } = req.params;
+            const service = new FindDiaristaByIdUsuarioService();
+            const diarista = await service.execute(id_usuario);
+            if (!diarista) {
+                throw new NotFoundError('Diarista não encontrado');
+            }
+            return res.status(200).json(diarista);
+        } catch (error) {
+            throw new BadRequestError('Erro ao buscar diarista');
+        }
+    }
+
     async criarDiarista(req, res) {
         try {
             const service = new CreateDiaristaService();
-            const diarista = await service.execute(req.validatedData);
+            const diaristaById = new FindDiaristaByIdUsuarioService();
+
+            const body = req.body;
+
+            const verifyDiaristaExists = diaristaById.execute(body.id_usuario);
+
+            if (!verifyDiaristaExists) {
+                throw new ConflictError(
+                    "Usuário já tem um diarista cadastrado"
+                )
+            }
+
+            const diarista = await service.execute(req.body);
             return res.status(201).json(diarista);
         } catch (error) {
             throw new BadRequestError('Erro ao criar diarista');
@@ -47,7 +74,7 @@ export class DiaristaController {
         try {
             const { id_diarista } = req.params;
             const service = new UpdateDiaristaService();
-            const diarista = await service.execute(id_diarista, req.validatedData);
+            const diarista = await service.execute(id_diarista, req.body);
             return res.status(200).json(diarista);
         } catch (error) {
             throw new BadRequestError('Erro ao atualizar diarista');

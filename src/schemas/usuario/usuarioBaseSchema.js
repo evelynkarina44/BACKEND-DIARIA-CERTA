@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const usuarioBaseSchema = z.object({
-    id_usuario: z.number().int(),
+    id_usuario: z.number().int().positive(),
     nome: z.string().min(3, { message: 'Nome deve ter pelo menos 3 caracteres' }).max(100, { message: 'Nome deve ter no máximo 100 caracteres' }),
     email: z.string().email({ message: 'Email deve ser um email válido' }),
     senha: z.string().min(6, { message: 'Senha deve ter pelo menos 6 caracteres' }).max(100, { message: 'Senha deve ter no máximo 100 caracteres' }),

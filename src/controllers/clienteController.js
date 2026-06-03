@@ -6,6 +6,8 @@ import { DeleteClienteService } from '../services/cliente/DeleteClienteService';
 
 import { NotFoundError } from "../errors/NotFoundError";
 import { BadRequestError } from '../errors/BadRequestError';
+import { ConflictError } from '../errors';
+import { FindClienteByIdUsuarioService } from '../services/cliente/FindClienteByIdUsuarioService';
 
 export class ClienteController {
 
@@ -33,10 +35,36 @@ export class ClienteController {
         }
     }
 
+    async buscarClientePorIdUsuario(req, res) {
+        try {
+            const { id_usuario } = req.params;
+            const service = new FindClienteByIdUsuarioService();
+            const client = await service.execute(id_usuario);
+            if (!client) {
+                throw new NotFoundError('Cliente não encontrado');
+            }
+            return res.status(200).json(client);
+        } catch (error) {
+            throw new BadRequestError('Erro ao buscar cliente');
+        }
+    }
+
     async criarCliente(req, res) {
         try {
             const service = new CreateClienteService();
-            const client = await service.execute(req.validatedData);
+            const clienteById = new FindClienteByIdUsuarioService();
+            
+            const body = req.body;
+
+            const verifyClientExists = await clienteById.execute(body.id_usuario);
+
+            if(!verifyClientExists) {
+                throw new ConflictError(
+                    "Usuário já tem um cliente cadastrado"
+                )
+            }
+
+            const client = await service.execute(req.body);
             return res.status(201).json(client);
         } catch (error) {
             throw new BadRequestError('Erro ao criar cliente');
@@ -47,7 +75,7 @@ export class ClienteController {
         try {
             const { id_cliente } = req.params;
             const service = new UpdateClienteService();
-            const client = await service.execute(id_cliente, req.validatedData);
+            const client = await service.execute(id_cliente, req.body);
             return res.status(200).json(client);
         } catch (error) {
             throw new BadRequestError('Erro ao atualizar cliente');

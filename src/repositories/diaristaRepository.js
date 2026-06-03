@@ -26,6 +26,19 @@ export class DiaristaRepository {
         }
     }
 
+    async findByIdUsuario(id_usuario) {
+        try {
+            return await prisma.diarista.findUnique({
+                where: { id_usuario: Number(id_usuario) }
+            });
+        } catch (error) {
+            throw new DatabaseError(
+                "Failed to find diarista",
+                error.message
+            );
+        }
+    }
+
     async create(dados) {
         try {
             return await prisma.diarista.create({

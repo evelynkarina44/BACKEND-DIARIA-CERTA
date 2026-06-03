@@ -2,6 +2,8 @@ import { CreateUsuarioService } from '../services/usuario/CreateUsuarioService';
 import { FindUsuarioService } from '../services/usuario/FindUsuarioService';
 import { UpdateUsuarioService } from '../services/usuario/UpdateUsuarioService';
 import { DeleteUsuarioService } from '../services/usuario/DeleteUsuarioService';
+import { ListUsuariosService } from '../services/usuario/ListUsuariosService';
+
 import { NotFoundError } from "../errors/NotFoundError";
 import { BadRequestError } from '../errors/BadRequestError';
 
@@ -17,7 +19,7 @@ export class UsuarioController {
         }
     }
 
-     async buscarUsuarioPorId(req, res) {
+    async buscarUsuarioPorId(req, res) {
         try {
             const { id_usuario } = req.params;
             const service = new FindUsuarioService();

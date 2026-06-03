@@ -26,6 +26,19 @@ export class ClienteRepository {
         }
     }
 
+    async findByIdUsuario(id_usuario) {
+        try {
+            return await prisma.cliente.findUnique({
+                where: { id_usuario: Number(id_usuario) }
+            });
+        } catch (error) {
+            throw new DatabaseError(
+                "Failed to find user",
+                error.message
+            );
+        }
+    }
+
     async create(dados) {
         try {
             return await prisma.cliente.create({

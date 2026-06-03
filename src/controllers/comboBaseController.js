@@ -36,7 +36,7 @@ export class ComboBaseController {
     async criarComboBase(req, res) {
         try {
             const service = new CreateComboBaseService();
-            const comboBase = await service.execute(req.validatedData);
+            const comboBase = await service.execute(req.body);
             return res.status(201).json(comboBase);
         } catch (error) {
             throw new BadRequestError('Erro ao criar combo base');
@@ -47,7 +47,7 @@ export class ComboBaseController {
         try {
             const { id } = req.params;
             const service = new UpdateComboBaseService();
-            const comboBase = await service.execute(id, req.validatedData);
+            const comboBase = await service.execute(id, req.body);
             return res.status(200).json(comboBase);
         } catch (error) {
             throw new BadRequestError('Erro ao atualizar combo base');

@@ -36,7 +36,7 @@ export class EnderecoController {
     async criarEndereco(req, res) {
         try {
             const service = new CreateEnderecoService();
-            const endereco = await service.execute(req.validatedData);
+            const endereco = await service.execute(req.body);
             return res.status(201).json(endereco);
         } catch (error) {
             throw new BadRequestError('Erro ao criar endereço');
@@ -47,7 +47,7 @@ export class EnderecoController {
         try {
             const { id } = req.params;
             const service = new UpdateEnderecoService();
-            const endereco = await service.execute(id, req.validatedData);
+            const endereco = await service.execute(id, req.body);
             return res.status(200).json(endereco);
         } catch (error) {
             throw new BadRequestError('Erro ao atualizar endereço');
