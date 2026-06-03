@@ -19,9 +19,9 @@ export class UsuarioController {
 
      async buscarUsuarioPorId(req, res) {
         try {
-            const { id } = req.params;
+            const { id_usuario } = req.params;
             const service = new FindUsuarioService();
-            const user = await service.execute(id);
+            const user = await service.execute(id_usuario);
             if (!user) {
                 throw new NotFoundError('Usuário não encontrado');
             }
@@ -31,7 +31,7 @@ export class UsuarioController {
         }
     }
 
-    async createUsuario(req, res) {
+    async criarUsuario(req, res) {
         try {
             const service = new CreateUsuarioService();
             const user = await service.execute(req.validatedData);
@@ -41,22 +41,22 @@ export class UsuarioController {
         }
     }
 
-    async updateUsuario(req, res) {
+    async atualizarUsuario(req, res) {
         try {
-            const { id } = req.params;
+            const { id_usuario } = req.params;
             const service = new UpdateUsuarioService();
-            const user = await service.execute(id, req.validatedData);
+            const user = await service.execute(id_usuario, req.validatedData);
             return res.status(200).json(user);
         } catch (error) {
             throw new BadRequestError('Erro ao atualizar usuário');
         }
     }
 
-    async deleteUsuario(req, res) {
+    async deletarUsuario(req, res) {
         try {
-            const { id } = req.params;
+            const { id_usuario } = req.params;
             const service = new DeleteUsuarioService();
-            const user = await service.execute(id);
+            const user = await service.execute(id_usuario);
             return res.status(200).json(user);
         } catch (error) {
             throw new BadRequestError('Erro ao excluir usuário');

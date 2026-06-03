@@ -13,10 +13,10 @@ export class UserRepository {
         }
     };
 
-    async findById(id) {
+    async findById(id_usuario) {
         try {
             return await prisma.usuario.findUnique({
-                where: { id_usuario: Number(id) }
+                where: { id_usuario: Number(id_usuario) }
             });
         } catch (error) {
             throw new DatabaseError(
@@ -39,10 +39,10 @@ export class UserRepository {
         }
     }
 
-    async update(id, dados) {
+    async update(id_usuario, dados) {
         try {
             return await prisma.usuario.update({
-                where: { id_usuario: Number(id) },
+                where: { id_usuario: Number(id_usuario) },
                 data: dados
             });
         } catch (error) {
@@ -53,10 +53,10 @@ export class UserRepository {
         }
     }
 
-    async delete(id) {
+    async delete(id_usuario) {
         try {
             return await prisma.usuario.delete({
-                where: { id_usuario: Number(id) }
+                where: { id_usuario: Number(id_usuario) }
             });
         } catch (error) {
             throw new DatabaseError(

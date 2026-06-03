@@ -1,8 +1,10 @@
 import { ValidationError } from "../errors";
 
-export function validate(schema) {
+export function validate(schema, source = "body") {
     return (req, res, next) => {
-        const result = schema.safeParse(req.body);
+        const result = schema.safeParse(
+            req[source]
+        );
 
         if(!result.success) {
             return next(
@@ -13,7 +15,7 @@ export function validate(schema) {
             );
         }
 
-        req.validatedData = result.data;
+        req[source] = result.data;
 
         next();
     };

@@ -33,7 +33,7 @@ export class EnderecoController {
         }
     }
 
-    async createEndereco(req, res) {
+    async criarEndereco(req, res) {
         try {
             const service = new CreateEnderecoService();
             const endereco = await service.execute(req.validatedData);
@@ -43,7 +43,7 @@ export class EnderecoController {
         }
     }
 
-    async updateEndereco(req, res) {
+    async atualizarEndereco(req, res) {
         try {
             const { id } = req.params;
             const service = new UpdateEnderecoService();
@@ -54,7 +54,7 @@ export class EnderecoController {
         }
     }
 
-    async deleteEndereco(req, res) {
+    async deletarEndereco(req, res) {
         try {
             const { id } = req.params;
             const service = new DeleteEnderecoService();

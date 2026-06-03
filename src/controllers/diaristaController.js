@@ -21,9 +21,9 @@ export class DiaristaController {
 
      async buscarDiaristaPorId(req, res) {
         try {
-            const { id } = req.params;
+            const { id_diarista } = req.params;
             const service = new FindDiaristaService();
-            const diarista = await service.execute(id);
+            const diarista = await service.execute(id_diarista);
             if (!diarista) {
                 throw new NotFoundError('Diarista não encontrado');
             }
@@ -33,7 +33,7 @@ export class DiaristaController {
         }
     }
 
-    async createDiarista(req, res) {
+    async criarDiarista(req, res) {
         try {
             const service = new CreateDiaristaService();
             const diarista = await service.execute(req.validatedData);
@@ -43,22 +43,22 @@ export class DiaristaController {
         }
     }
 
-    async updateDiarista(req, res) {
+    async atualizarDiarista(req, res) {
         try {
-            const { id } = req.params;
+            const { id_diarista } = req.params;
             const service = new UpdateDiaristaService();
-            const diarista = await service.execute(id, req.validatedData);
+            const diarista = await service.execute(id_diarista, req.validatedData);
             return res.status(200).json(diarista);
         } catch (error) {
             throw new BadRequestError('Erro ao atualizar diarista');
         }
     }
 
-    async deleteDiarista(req, res) {
+    async deletarDiarista(req, res) {
         try {
-            const { id } = req.params;
+            const { id_diarista } = req.params;
             const service = new DeleteDiaristaService();
-            const diarista = await service.execute(id);
+            const diarista = await service.execute(id_diarista);
             return res.status(200).json(diarista);
         } catch (error) {
             throw new BadRequestError('Erro ao excluir diarista');

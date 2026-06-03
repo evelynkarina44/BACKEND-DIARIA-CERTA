@@ -1,9 +1,9 @@
-import { DiaristaRepository } from "../../repositories/diaristaRepository";
+import { diaristaRepository } from './DiaristaRepository';
 
-const diaristaRepository = new DiaristaRepository();
+const diaristaRepository = new diaristaRepository();
 
 export class UpdateDiaristaService {
-  async execute(id, data) {
-    return diaristaRepository.update(id, data);
+  async execute(id_diarista, data) {
+    return diaristaRepository.update(id_diarista, data);
   }
 }

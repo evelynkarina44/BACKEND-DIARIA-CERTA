@@ -3,12 +3,14 @@ import { ClienteController } from '../controllers/clienteController';
 
 export const router = express.Router();
 
-router.get('/', ClienteController.listarClientes);
+const clienteController = new ClienteController();
 
-router.get('/:id', ClienteController.buscarClientePorId);
+router.get('/', clienteController.listarClientes);
 
-router.post('/', ClienteController.criarCliente);
+router.get('/:id_cliente', clienteController.buscarClientePorId);
 
-router.put('/:id', ClienteController.atualizarCliente);
+router.post('/', clienteController.criarCliente);
 
-router.delete('/:id', ClienteController.deletarCliente);
+router.put('/:id_cliente', clienteController.atualizarCliente);
+
+router.delete('/:id_cliente', clienteController.deletarCliente);

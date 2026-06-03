@@ -1,7 +1,7 @@
 import prisma from "../lib/prisma";
 import { DatabaseError } from "../errors/DatabaseError";
 
-export class DiamistaRepository {
+export class DiaristaRepository {
     async findAll() {
         try {
             return await prisma.diarista.findMany();
@@ -13,10 +13,10 @@ export class DiamistaRepository {
         }
     };
 
-    async findById(id) {
+    async findById(id_diarista) {
         try {
             return await prisma.diarista.findUnique({
-                where: { id_diarista: Number(id) }
+                where: { id_diarista: Number(id_diarista) }
             });
         } catch (error) {
             throw new DatabaseError(
@@ -39,10 +39,10 @@ export class DiamistaRepository {
         }
     }
 
-    async update(id, dados) {
+    async update(id_diarista, dados) {
         try {
             return await prisma.diarista.update({
-                where: { id_diarista: Number(id) },
+                where: { id_diarista: Number(id_diarista) },
                 data: dados
             });
         } catch (error) {
@@ -53,10 +53,10 @@ export class DiamistaRepository {
         }
     }
 
-    async delete(id) {
+    async delete(id_diarista) {
         try {
             return await prisma.diarista.delete({
-                where: { id_diarista: Number(id) }
+                where: { id_diarista: Number(id_diarista) }
             });
         } catch (error) {
             throw new DatabaseError(

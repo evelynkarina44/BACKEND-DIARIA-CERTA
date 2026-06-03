@@ -33,7 +33,7 @@ export class ComboBaseController {
         }
     }
 
-    async createComboBase(req, res) {
+    async criarComboBase(req, res) {
         try {
             const service = new CreateComboBaseService();
             const comboBase = await service.execute(req.validatedData);
@@ -43,7 +43,7 @@ export class ComboBaseController {
         }
     }
 
-    async updateComboBase(req, res) {
+    async atualizarComboBase(req, res) {
         try {
             const { id } = req.params;
             const service = new UpdateComboBaseService();
@@ -54,7 +54,7 @@ export class ComboBaseController {
         }
     }
 
-    async deleteComboBase(req, res) {
+    async deletarComboBase(req, res) {
         try {
             const { id } = req.params;
             const service = new DeleteComboBaseService();

@@ -3,12 +3,14 @@ import { EnderecoController } from '../controllers/enderecoController';
 
 const router = express.Router();
 
-router.get('/', EnderecoController.listarEnderecos);
+const enderecoController = new EnderecoController();
 
-router.get('/:id', EnderecoController.buscarEnderecoPorId);
+router.get('/', enderecoController.listarEnderecos);
 
-router.post('/', EnderecoController.criarEndereco);
+router.get('/:id', enderecoController.buscarEnderecoPorId);
 
-router.put('/:id', EnderecoController.atualizarEndereco);
+router.post('/', enderecoController.criarEndereco);
 
-router.delete('/:id', EnderecoController.deletarEndereco);
+router.put('/:id', enderecoController.atualizarEndereco);
+
+router.delete('/:id', enderecoController.deletarEndereco);

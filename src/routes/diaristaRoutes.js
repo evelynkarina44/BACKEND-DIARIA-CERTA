@@ -3,12 +3,14 @@ import { DiaristaController } from '../controllers/diaristaController';
 
 const router = express.Router();
 
-router.get('/', DiaristaController.listarDiaristas);
+const diaristaController = new DiaristaController();
 
-router.get('/:id', DiaristaController.buscarDiaristaPorId);
+router.get('/', diaristaController.listarDiaristas);
 
-router.post('/', DiaristaController.criarDiarista);
+router.get('/:id_diarista', diaristaController.buscarDiaristaPorId);
 
-router.put('/:id', DiaristaController.atualizarDiarista);
+router.post('/', diaristaController.criarDiarista);
 
-router.delete('/:id', DiaristaController.deletarDiarista);
+router.put('/:id_diarista', diaristaController.atualizarDiarista);
+
+router.delete('/:id_diarista', diaristaController.deletarDiarista);

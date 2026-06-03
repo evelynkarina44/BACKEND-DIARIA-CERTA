@@ -21,9 +21,9 @@ export class ClienteController {
 
     async buscarClientePorId(req, res) {
         try {
-            const { id } = req.params;
+            const { id_cliente } = req.params;
             const service = new FindClienteService();
-            const client = await service.execute(id);
+            const client = await service.execute(id_cliente);
             if (!client) {
                 throw new NotFoundError('Cliente não encontrado');
             }
@@ -33,7 +33,7 @@ export class ClienteController {
         }
     }
 
-    async createCliente(req, res) {
+    async criarCliente(req, res) {
         try {
             const service = new CreateClienteService();
             const client = await service.execute(req.validatedData);
@@ -43,22 +43,22 @@ export class ClienteController {
         }
     }
 
-    async updateCliente(req, res) {
+    async atualizarCliente(req, res) {
         try {
-            const { id } = req.params;
+            const { id_cliente } = req.params;
             const service = new UpdateClienteService();
-            const client = await service.execute(id, req.validatedData);
+            const client = await service.execute(id_cliente, req.validatedData);
             return res.status(200).json(client);
         } catch (error) {
             throw new BadRequestError('Erro ao atualizar cliente');
         }
     }
 
-    async deleteCliente(req, res) {
+    async deletarCliente(req, res) {
         try {
-            const { id } = req.params;
+            const { id_cliente } = req.params;
             const service = new DeleteClienteService();
-            const client = await service.execute(id);
+            const client = await service.execute(id_cliente);
             return res.status(200).json(client);
         } catch (error) {
             throw new BadRequestError('Erro ao excluir cliente');

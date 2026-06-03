@@ -3,13 +3,15 @@ import { ComboBaseController } from '../controllers/comboBaseController';
 
 export const router = express.Router();
 
-router.get('/', ComboBaseController.listarComboBases);
+const comboBaseController = new ComboBaseController();
 
-router.get('/:id', ComboBaseController.buscarComboBasePorId);
+router.get('/', comboBaseController.listarComboBases);
 
-router.post('/', ComboBaseController.criarComboBase);
+router.get('/:id', comboBaseController.buscarComboBasePorId);
 
-router.put('/:id', ComboBaseController.atualizarComboBase);
+router.post('/', comboBaseController.criarComboBase);
 
-router.delete('/:id', ComboBaseController.deletarComboBase);
+router.put('/:id', comboBaseController.atualizarComboBase);
+
+router.delete('/:id', comboBaseController.deletarComboBase);
 

@@ -3,7 +3,7 @@ import { UserRepository } from "../../repositories/userRepository";
 const userRepository = new UserRepository();
 
 export class DeleteUserService {
-  async execute(id) {
-    return userRepository.delete(id);
+  async execute(id_usuario) {
+    return userRepository.delete(id_usuario);
   }
 }

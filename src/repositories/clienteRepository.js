@@ -13,10 +13,10 @@ export class ClienteRepository {
         }
     };
 
-    async findById(id) {
+    async findById(id_cliente) {
         try {
             return await prisma.cliente.findUnique({
-                where: { id_cliente: Number(id) }
+                where: { id_cliente: Number(id_cliente) }
             });
         } catch (error) {
             throw new DatabaseError(
@@ -39,10 +39,10 @@ export class ClienteRepository {
         }
     }
 
-    async update(id, dados) {
+    async update(id_cliente, dados) {
         try {
             return await prisma.cliente.update({
-                where: { id_cliente: Number(id) },
+                where: { id_cliente: Number(id_cliente) },
                 data: dados
             });
         } catch (error) {
@@ -53,10 +53,10 @@ export class ClienteRepository {
         }
     }
 
-    async delete(id) {
+    async delete(id_cliente) {
         try {
             return await prisma.cliente.delete({
-                where: { id_cliente: Number(id) }
+                where: { id_cliente: Number(id_cliente) }
             });
         } catch (error) {
             throw new DatabaseError(
