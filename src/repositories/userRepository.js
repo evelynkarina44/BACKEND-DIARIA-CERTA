@@ -1,68 +1,60 @@
-import prisma from "../lib/prisma";
-import { DatabaseError } from "../errors/DatabaseError";
+import prisma from "../lib/prisma.js";
+
+const publicUserSelect = {
+  id_usuario: true,
+  nome: true,
+  email: true,
+  telefone: true,
+  foto_perfil: true,
+  tipo: true,
+  ativo: true,
+  data_cadastro: true,
+  atualizado_em: true,
+};
 
 export class UserRepository {
-    async findAll() {
-        try {
-            return await prisma.usuario.findMany();
-        } catch (error) {
-            throw new DatabaseError(
-                "Failed to find usuarios",
-                error.message
-            );
-        }
-    };
+  findByEmail(email) {
+    return prisma.usuario.findUnique({ where: { email }, select: publicUserSelect });
+  }
 
-    async findById(id_usuario) {
-        try {
-            return await prisma.usuario.findUnique({
-                where: { id_usuario: Number(id_usuario) }
-            });
-        } catch (error) {
-            throw new DatabaseError(
-                "Failed to find usuario",
-                error.message
-            );
-        }
-    }
+  findByCpf(cpf) {
+    return prisma.usuario.findUnique({ where: { cpf }, select: { id_usuario: true } });
+  }
 
-    async create(dados) {
-        try {
-            return await prisma.usuario.create({
-                data: dados
-            });
-        } catch (error) {
-            throw new DatabaseError(
-                "Failed to create usuario",
-                error.message
-            );
-        }
-    }
+  findCredentialsByEmail(email) {
+    return prisma.usuario.findUnique({
+      where: { email },
+      select: { id_usuario: true, email: true, senha: true, tipo: true, ativo: true, bloqueado: true },
+    });
+  }
 
-    async update(id_usuario, dados) {
-        try {
-            return await prisma.usuario.update({
-                where: { id_usuario: Number(id_usuario) },
-                data: dados
-            });
-        } catch (error) {
-            throw new DatabaseError(
-                "Failed to update usuario",
-                error.message
-            );
-        }
-    }
+  findAuthStateById(id_usuario) {
+    return prisma.usuario.findUnique({
+      where: { id_usuario },
+      select: { id_usuario: true, tipo: true, ativo: true, bloqueado: true },
+    });
+  }
 
-    async delete(id_usuario) {
-        try {
-            return await prisma.usuario.delete({
-                where: { id_usuario: Number(id_usuario) }
-            });
-        } catch (error) {
-            throw new DatabaseError(
-                "Failed to delete usuario",
-                error.message
-            );
-        }
-    }
+  findPublicById(id_usuario) {
+    return prisma.usuario.findUnique({ where: { id_usuario }, select: publicUserSelect });
+  }
+
+  createWithProfile(data) {
+    const { perfil, ...userData } = data;
+    const relation = userData.tipo === "CLIENTE" ? "cliente" : "diarista";
+    return prisma.usuario.create({
+      data: { ...userData, [relation]: { create: perfil } },
+      select: publicUserSelect,
+    });
+  }
+
+  updatePublicData(id_usuario, data) {
+    return prisma.usuario.update({ where: { id_usuario }, data, select: publicUserSelect });
+  }
+
+  updatePassword(id_usuario, senha) {
+    return prisma.usuario.update({ where: { id_usuario }, data: { senha }, select: { id_usuario: true } });
+  }
 }
+
+export { publicUserSelect };

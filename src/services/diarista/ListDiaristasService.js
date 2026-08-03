@@ -1,9 +1,18 @@
-import { DiaristaRepository } from "../../repositories/diaristaRepository";
+import { DiaristaRepository } from "../../repositories/diaristaRepository.js";
 
-const diaristaRepository = new DiaristaRepository();
+const repository = new DiaristaRepository();
 
 export class ListDiaristasService {
-  async execute() {
-    return diaristaRepository.findAll();
+  async execute(filters) {
+    const { data, total } = await repository.search(filters);
+    return {
+      data,
+      pagination: {
+        page: filters.page,
+        limit: filters.limit,
+        total,
+        totalPages: Math.ceil(total / filters.limit),
+      },
+    };
   }
 }

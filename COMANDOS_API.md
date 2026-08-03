@@ -1,290 +1,87 @@
 # Comandos da API
 
-Base URL:
+Base URL: `http://localhost:3000`
 
-```text
-http://localhost:3000
+Os exemplos abaixo usam `curl` com sintaxe compatível com PowerShell. Respostas de sucesso usam `data`; erros usam `error.code` e `error.message`.
+
+## Saúde
+
+```powershell
+curl.exe http://localhost:3000/health
 ```
 
-## Usuario
+## Cadastro de cliente
 
-### Criar usuario
-
-#### curl
-
-```bash
-curl -X POST "http://localhost:3000/api/usuario" ^
-  -H "Content-Type: application/json" ^
-  -d "{\"dados\":{\"nome\":\"Maria Silva\",\"email\":\"maria.silva@email.com\",\"senha\":\"123456\",\"telefone\":\"11999999999\",\"foto_perfil\":\"https://exemplo.com/foto.jpg\"}}"
+```powershell
+curl.exe -X POST http://localhost:3000/api/auth/register `
+  -H "Content-Type: application/json" `
+  -d '{"tipo":"CLIENTE","nome":"Maria Silva","email":"maria@example.com","senha":"senha-segura-123","telefone":"11999999999","data_nascimento":"1995-08-20","qtd_comodos":3,"tamanho_casa":"media"}'
 ```
 
-#### Postman
+## Cadastro de diarista
 
-- Method: `POST`
-- URL: `http://localhost:3000/api/usuario`
-- Headers: `Content-Type: application/json`
-- Body > raw > JSON:
-
-```json
-{
-  "dados": {
-    "nome": "Maria Silva",
-    "email": "maria.silva@email.com",
-    "senha": "123456",
-    "telefone": "11999999999",
-    "foto_perfil": "https://exemplo.com/foto.jpg"
-  }
-}
+```powershell
+curl.exe -X POST http://localhost:3000/api/auth/register `
+  -H "Content-Type: application/json" `
+  -d '{"tipo":"DIARISTA","nome":"Ana Souza","email":"ana@example.com","senha":"senha-segura-123","telefone":"11988888888","descricao":"Profissional de limpeza residencial com experiência.","qtd_max_comodos":6}'
 ```
 
-### Buscar todos os usuarios
+## Login
 
-#### curl
-
-```bash
-curl -X GET "http://localhost:3000/api/usuario"
+```powershell
+curl.exe -X POST http://localhost:3000/api/auth/login `
+  -H "Content-Type: application/json" `
+  -d '{"email":"maria@example.com","senha":"senha-segura-123"}'
 ```
 
-#### Postman
+Copie o valor retornado em `data.token` para os comandos privados.
 
-- Method: `GET`
-- URL: `http://localhost:3000/api/usuario`
-- Sem body
-
-### Buscar usuario por id
-
-#### curl
-
-```bash
-curl -X GET "http://localhost:3000/api/usuario/1"
+```powershell
+$token = "TOKEN_RETORNADO_NO_LOGIN"
 ```
 
-#### Postman
+## Perfil autenticado
 
-- Method: `GET`
-- URL: `http://localhost:3000/api/usuario/1`
-- Sem body
-
-## Cliente
-
-### Criar cliente
-
-#### curl
-
-```bash
-curl -X POST "http://localhost:3000/api/cliente" ^
-  -H "Content-Type: application/json" ^
-  -d "{\"dados\":{\"id_usuario\":1,\"data_nascimento\":\"1995-08-20\",\"qtd_comodos\":3,\"tamanho_casa\":\"pequena\"}}"
+```powershell
+curl.exe http://localhost:3000/api/auth/me -H "Authorization: Bearer $token"
 ```
 
-#### Postman
+## Atualizar o próprio usuário
 
-- Method: `POST`
-- URL: `http://localhost:3000/api/cliente`
-- Headers: `Content-Type: application/json`
-- Body > raw > JSON:
-
-```json
-{
-  "dados": {
-    "id_usuario": 1,
-    "data_nascimento": "1995-08-20T00:00:00.000Z",
-    "qtd_comodos": 3,
-    "tamanho_casa": "pequena"
-  }
-}
+```powershell
+curl.exe -X PATCH http://localhost:3000/api/usuarios/me `
+  -H "Authorization: Bearer $token" `
+  -H "Content-Type: application/json" `
+  -d '{"nome":"Maria da Silva","telefone":"11977777777"}'
 ```
 
-### Buscar todos os clientes
+## Trocar senha
 
-#### curl
-
-```bash
-curl -X GET "http://localhost:3000/api/cliente"
+```powershell
+curl.exe -X PATCH http://localhost:3000/api/auth/password `
+  -H "Authorization: Bearer $token" `
+  -H "Content-Type: application/json" `
+  -d '{"senha_atual":"senha-segura-123","nova_senha":"outra-senha-segura-456"}'
 ```
 
-#### Postman
+## Buscar diaristas
 
-- Method: `GET`
-- URL: `http://localhost:3000/api/cliente`
-- Sem body
-
-### Buscar cliente por id
-
-#### curl
-
-```bash
-curl -X GET "http://localhost:3000/api/cliente/1"
+```powershell
+curl.exe "http://localhost:3000/api/diaristas?page=1&limit=10&cidade=Sao%20Paulo&avaliacao_minima=4&ordenar_por=avaliacao&ordem=desc"
 ```
 
-#### Postman
+Filtros aceitos: `nome`, `cidade`, `bairro`, `avaliacao_minima`, `preco_minimo`, `preco_maximo`, `servico_id`, `page`, `limit`, `ordenar_por` e `ordem`.
 
-- Method: `GET`
-- URL: `http://localhost:3000/api/cliente/1`
-- Sem body
+## Consultar uma diarista
 
-## Diarista
-
-### Criar diarista
-
-#### curl
-
-```bash
-curl -X POST "http://localhost:3000/api/diarista" ^
-  -H "Content-Type: application/json" ^
-  -d "{\"dados\":{\"id_usuario\":2,\"descricao\":\"Profissional com experiencia em limpeza residencial.\",\"frequencia_resposta\":\"rapida\",\"qtd_max_comodos\":5,\"avaliacao_media\":4.8}}"
+```powershell
+curl.exe http://localhost:3000/api/diaristas/1
 ```
 
-#### Postman
+## Catálogo de serviços
 
-- Method: `POST`
-- URL: `http://localhost:3000/api/diarista`
-- Headers: `Content-Type: application/json`
-- Body > raw > JSON:
-
-```json
-{
-  "dados": {
-    "id_usuario": 2,
-    "descricao": "Profissional com experiencia em limpeza residencial.",
-    "frequencia_resposta": "rapida",
-    "qtd_max_comodos": 5,
-    "avaliacao_media": 4.8
-  }
-}
+```powershell
+curl.exe http://localhost:3000/api/servicos
 ```
 
-### Buscar todas as diaristas
-
-#### curl
-
-```bash
-curl -X GET "http://localhost:3000/api/diarista"
-```
-
-#### Postman
-
-- Method: `GET`
-- URL: `http://localhost:3000/api/diarista`
-- Sem body
-
-### Buscar diarista por id
-
-#### curl
-
-```bash
-curl -X GET "http://localhost:3000/api/diarista/1"
-```
-
-#### Postman
-
-- Method: `GET`
-- URL: `http://localhost:3000/api/diarista/1`
-- Sem body
-
-## Combo Base
-
-### Criar combo base
-
-#### curl
-
-```bash
-curl -X POST "http://localhost:3000/api/combo_base" ^
-  -H "Content-Type: application/json" ^
-  -d "{\"dados\":{\"id_diarista\":1,\"nome_combo\":\"Combo Casa Pequena\",\"valor_base\":120.50,\"descricao\":\"Limpeza completa para casas pequenas\",\"qtd_comodos_casa\":3,\"atende_casa_pequena\":true,\"atende_casa_media\":false,\"atende_casa_grande\":false}}"
-```
-
-#### Postman
-
-- Method: `POST`
-- URL: `http://localhost:3000/api/combo_base`
-- Headers: `Content-Type: application/json`
-- Body > raw > JSON:
-
-```json
-{
-  "dados": {
-    "id_diarista": 1,
-    "nome_combo": "Combo Casa Pequena",
-    "valor_base": 120.5,
-    "descricao": "Limpeza completa para casas pequenas",
-    "qtd_comodos_casa": 3,
-    "atende_casa_pequena": true,
-    "atende_casa_media": false,
-    "atende_casa_grande": false
-  }
-}
-```
-
-### Buscar todos os combos base
-
-#### curl
-
-```bash
-curl -X GET "http://localhost:3000/api/combo_base"
-```
-
-#### Postman
-
-- Method: `GET`
-- URL: `http://localhost:3000/api/combo_base`
-- Sem body
-
-### Buscar combo base por id
-
-#### curl
-
-```bash
-curl -X GET "http://localhost:3000/api/combo_base/1"
-```
-
-#### Postman
-
-- Method: `GET`
-- URL: `http://localhost:3000/api/combo_base/1`
-- Sem body
-
-### Atualizar combo base
-
-#### curl
-
-```bash
-curl -X PUT "http://localhost:3000/api/combo_base/1" ^
-  -H "Content-Type: application/json" ^
-  -d "{\"dados\":{\"nome_combo\":\"Combo Casa Media\",\"valor_base\":150.00,\"descricao\":\"Atualizado\",\"qtd_comodos_casa\":4,\"atende_casa_pequena\":true,\"atende_casa_media\":true,\"atende_casa_grande\":false}}"
-```
-
-#### Postman
-
-- Method: `PUT`
-- URL: `http://localhost:3000/api/combo_base/1`
-- Headers: `Content-Type: application/json`
-- Body > raw > JSON:
-
-```json
-{
-  "dados": {
-    "nome_combo": "Combo Casa Media",
-    "valor_base": 150.0,
-    "descricao": "Atualizado",
-    "qtd_comodos_casa": 4,
-    "atende_casa_pequena": true,
-    "atende_casa_media": true,
-    "atende_casa_grande": false
-  }
-}
-```
-
-### Deletar combo base
-
-#### curl
-
-```bash
-curl -X DELETE "http://localhost:3000/api/combo_base/1"
-```
-
-#### Postman
-
-- Method: `DELETE`
-- URL: `http://localhost:3000/api/combo_base/1`
-- Sem body
+Os CRUDs genéricos antigos não são publicados porque aceitavam IDs de proprietário enviados pelo cliente, não tinham autenticação e permitiam alterações arbitrárias. A sequência segura para os módulos restantes está em `REVISAO_BACKEND.md`.
