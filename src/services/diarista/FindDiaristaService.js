@@ -1,12 +1,9 @@
-import { AppError } from "../../errors/AppError.js";
-import { DiaristaRepository } from "../../repositories/diaristaRepository.js";
+import { DiaristaRepository } from "../../repositories/diaristaRepository";
 
-const repository = new DiaristaRepository();
+const diaristaRepository = new DiaristaRepository();
 
 export class FindDiaristaService {
-  async execute(id) {
-    const worker = await repository.findPublicById(id);
-    if (!worker) throw new AppError("Diarista não encontrada.", 404, "WORKER_NOT_FOUND");
-    return worker;
+  async execute(id_diarista) {
+    return diaristaRepository.findById(id_diarista);
   }
 }

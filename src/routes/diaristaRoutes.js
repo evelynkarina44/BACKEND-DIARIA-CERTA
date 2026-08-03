@@ -1,12 +1,16 @@
-import express from "express";
-import { DiaristaController } from "../controllers/diaristaController.js";
-import { validate } from "../middlewares/validate.js";
-import { diaristaParamsSchema, searchDiaristasSchema } from "../schemas/diarista/searchDiaristasSchema.js";
+import { express } from 'express';
+import { DiaristaController } from '../controllers/diaristaController';
 
 const router = express.Router();
-const controller = new DiaristaController();
 
-router.get("/", validate(searchDiaristasSchema), controller.list.bind(controller));
-router.get("/:id_diarista", validate(diaristaParamsSchema), controller.find.bind(controller));
+const diaristaController = new DiaristaController();
 
-export default router;
+router.get('/', diaristaController.listarDiaristas);
+
+router.get('/:id_diarista', diaristaController.buscarDiaristaPorId);
+
+router.post('/', diaristaController.criarDiarista);
+
+router.put('/:id_diarista', diaristaController.atualizarDiarista);
+
+router.delete('/:id_diarista', diaristaController.deletarDiarista);

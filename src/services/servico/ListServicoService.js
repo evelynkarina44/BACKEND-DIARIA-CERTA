@@ -1,9 +1,9 @@
-import { ServicoRepository } from "../../repositories/servicoRepository.js";
+import { ServicoRepository } from "../../repositories/servicoRepository";
 
-const repository = new ServicoRepository();
+const servicoRepository = new ServicoRepository();
 
 export class ListServicosService {
-  execute() {
-    return repository.findAll();
+  async execute() {
+    return servicoRepository.findAll();
   }
 }

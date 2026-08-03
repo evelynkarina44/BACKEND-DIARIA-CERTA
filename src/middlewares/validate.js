@@ -1,25 +1,21 @@
-import { ValidationError } from "../errors/ValidationError.js";
+import { ValidationError } from "../errors";
 
-export function validate(schema) {
+export function validate(schema, source = "body") {
     return (req, res, next) => {
-        const result = schema.safeParse({
-            body: req.body,
-            params: req.params,
-            query: req.query,
-        });
+        const result = schema.safeParse(
+            req[source]
+        );
 
         if(!result.success) {
             return next(
                 new ValidationError(
-                    "Dados da requisição inválidos.",
+                    "Validation failed",
                     result.error.flatten()
                 )
             );
         }
 
-        req.validated = result.data;
-        if (result.data.body !== undefined) req.body = result.data.body;
-        if (result.data.params !== undefined) req.params = result.data.params;
+        req[source] = result.data;
 
         next();
     };
