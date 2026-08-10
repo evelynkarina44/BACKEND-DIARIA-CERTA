@@ -1,4 +1,4 @@
 import { z } from 'zod';
-import { comboServicoSchema } from './comboServicoSchema';
+import { comboServicoBaseSchema } from './comboServicoBaseSchema.js';
 
-export const comboServicoResponseSchema = comboServicoSchema;
+export const comboServicoResponseSchema = comboServicoBaseSchema;

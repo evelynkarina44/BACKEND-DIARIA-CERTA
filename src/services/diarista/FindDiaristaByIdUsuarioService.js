@@ -1,4 +1,4 @@
-import { DiaristaRepository } from "../../repositories/diaristaRepository";
+import { DiaristaRepository } from "../../repositories/diaristaRepository.js";
 
 const diaristaRepository = new DiaristaRepository();
 

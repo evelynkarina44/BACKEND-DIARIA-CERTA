@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { comboServicoSchema } from './comboServicoSchema';
+import { comboServicoBaseSchema } from './comboServicoBaseSchema.js';
 
-export const comboServicoWithRelationsSchema = comboServicoSchema.extend({
+export const comboServicoWithRelationsSchema = comboServicoBaseSchema.extend({
     
 })

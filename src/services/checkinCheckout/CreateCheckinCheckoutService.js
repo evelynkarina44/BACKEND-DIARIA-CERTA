@@ -1,4 +1,4 @@
-import { CheckinCheckoutRepository } from "../../repositories/checkinCheckoutRepository";
+import { CheckinCheckoutRepository } from "../../repositories/checkinCheckoutRepository.js";
 
 const checkinCheckoutRepository = new CheckinCheckoutRepository();
 

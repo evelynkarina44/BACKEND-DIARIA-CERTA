@@ -1,17 +1,17 @@
-import { express } from 'express';
-import { DisponibilidadeDiaristaController } from '../controllers/disponibilidadeDiaristaController';
+import { Router } from 'express';
+import { DisponibilidadeDiaristaController } from '../controllers/disponibilidadeDiaristaController.js';
+import { authenticate, authorizeRoles } from '../middlewares/auth.js';
+import { validate } from '../middlewares/validate.js';
+import { ownDisponibilidade, requireOwnProfileInBody } from '../middlewares/ownership.js';
+import { createDisponibilidadeSchema, idSchema, listQuerySchema, updateDisponibilidadeSchema } from '../schemas/apiSchemas.js';
 
-export const router = express.Router();
+const router = Router();
+const controller = new DisponibilidadeDiaristaController();
 
-const disponibilidadeDiaristaController = new DisponibilidadeDiaristaController();
+router.get('/', validate(listQuerySchema, 'query'), controller.listarDisponibilidades);
+router.get('/:id', validate(idSchema, 'params'), controller.buscarDisponibilidadePorId);
+router.post('/', authenticate, authorizeRoles('diarista'), validate(createDisponibilidadeSchema), requireOwnProfileInBody('id_diarista', 'id_diarista'), controller.criarDisponibilidade);
+router.put('/:id', authenticate, authorizeRoles('diarista'), validate(idSchema, 'params'), ownDisponibilidade, validate(updateDisponibilidadeSchema), controller.atualizarDisponibilidade);
+router.delete('/:id', authenticate, authorizeRoles('diarista'), validate(idSchema, 'params'), ownDisponibilidade, controller.deletarDisponibilidade);
 
-router.get('/', disponibilidadeDiaristaController.listarDisponibilidadeDiaristas);
-
-router.get('/:id', disponibilidadeDiaristaController.buscarDisponibilidadeDiaristaPorId);
-
-router.post('/', disponibilidadeDiaristaController.criarDisponibilidadeDiarista);
-
-router.put('/:id', disponibilidadeDiaristaController.atualizarDisponibilidadeDiarista);
-
-router.delete('/:id', disponibilidadeDiaristaController.deletarDisponibilidadeDiarista);
-
+export default router;

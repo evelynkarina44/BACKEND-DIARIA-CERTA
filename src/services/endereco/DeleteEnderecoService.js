@@ -1,9 +1,7 @@
-import { EnderecoRepository } from "../../repositories/enderecoRepository";
-
-const enderecoRepository = new EnderecoRepository();
+import { EnderecoRepository } from '../../repositories/enderecoRepository.js';
+import { assertEnderecoOwner } from './EnderecoPolicy.js';
 
 export class DeleteEnderecoService {
-  async execute(id) {
-    return enderecoRepository.delete(id);
-  }
+  constructor(repository = new EnderecoRepository()) { this.repository = repository; }
+  async execute(id, auth) { const current = await this.repository.findById(id); assertEnderecoOwner(current, auth); return this.repository.delete(id); }
 }

@@ -1,9 +1,5 @@
-import { AgendamentoRepository } from "../../repositories/agendamentoRepository";
-
-const agendamentoRepository = new AgendamentoRepository();
-
-export class ListAgendamentosService {
-  async execute() {
-    return agendamentoRepository.findAll();
-  }
+import { AgendamentoWorkflowService } from './AgendamentoWorkflowService.js';
+export class ListAgendamentoService {
+  constructor(workflow = new AgendamentoWorkflowService()) { this.workflow = workflow; }
+  execute(query, auth) { return this.workflow.list(query, auth); }
 }

@@ -1,4 +1,4 @@
-import { ComboServicoRepository } from "../../repositories/comboServicoRepository";
+import { ComboServicoRepository } from "../../repositories/comboServicoRepository.js";
 
 const comboServicoRepository = new ComboServicoRepository();
 

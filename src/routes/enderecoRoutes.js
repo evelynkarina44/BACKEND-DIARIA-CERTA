@@ -1,16 +1,17 @@
-import { express } from 'express';
-import { EnderecoController } from '../controllers/enderecoController';
+import { Router } from 'express';
+import { EnderecoController } from '../controllers/enderecoController.js';
+import { authenticate } from '../middlewares/auth.js';
+import { validate } from '../middlewares/validate.js';
+import { createEnderecoSchema, idSchema, listQuerySchema, updateEnderecoSchema } from '../schemas/apiSchemas.js';
 
-const router = express.Router();
+const router = Router();
+const controller = new EnderecoController();
 
-const enderecoController = new EnderecoController();
+router.use(authenticate);
+router.get('/', validate(listQuerySchema, 'query'), controller.listarEnderecos);
+router.get('/:id', validate(idSchema, 'params'), controller.buscarEnderecoPorId);
+router.post('/', validate(createEnderecoSchema), controller.criarEndereco);
+router.put('/:id', validate(idSchema, 'params'), validate(updateEnderecoSchema), controller.atualizarEndereco);
+router.delete('/:id', validate(idSchema, 'params'), controller.deletarEndereco);
 
-router.get('/', enderecoController.listarEnderecos);
-
-router.get('/:id', enderecoController.buscarEnderecoPorId);
-
-router.post('/', enderecoController.criarEndereco);
-
-router.put('/:id', enderecoController.atualizarEndereco);
-
-router.delete('/:id', enderecoController.deletarEndereco);
+export default router;

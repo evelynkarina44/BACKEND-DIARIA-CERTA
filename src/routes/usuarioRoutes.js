@@ -1,18 +1,17 @@
-import { express } from 'express';
-import { UsuarioController } from '../controllers/usuarioController';
-import { validate } from '../middlewares/validate';
-import { createUsuarioSchema, updateUsuarioSchema, listUsuariosQuerySchema, usuarioIdSchema } from '../schemas/usuario/usuarioSchemas';
+import { Router } from 'express';
+import { UsuarioController } from '../controllers/usuarioController.js';
+import { authenticate } from '../middlewares/auth.js';
+import { validate } from '../middlewares/validate.js';
+import { createUsuarioSchema, idSchema, listQuerySchema, updateUsuarioSchema } from '../schemas/apiSchemas.js';
 
-const router = express.Router();
+const router = Router();
+const controller = new UsuarioController();
 
-const usuarioController = new UsuarioController();
+router.post('/', validate(createUsuarioSchema), controller.criarUsuario);
+router.use(authenticate);
+router.get('/', validate(listQuerySchema, 'query'), controller.listarUsuarios);
+router.get('/:id', validate(idSchema, 'params'), controller.buscarUsuarioPorId);
+router.put('/:id', validate(idSchema, 'params'), validate(updateUsuarioSchema), controller.atualizarUsuario);
+router.delete('/:id', validate(idSchema, 'params'), controller.deletarUsuario);
 
-router.get('/', validate(listUsuariosQuerySchema, "query"), usuarioController.listarUsuarios);
-
-router.get('/:id_usuario', validate(usuarioIdSchema, "params"), usuarioController.buscarUsuarioPorId);
-
-router.post('/', validate(createUsuarioSchema), usuarioController.criarUsuario);
-
-router.put('/:id_usuario', validate(usuarioIdSchema, "params"), validate(updateUsuarioSchema), usuarioController.atualizarUsuario);
-
-router.delete('/:id_usuario', validate(usuarioIdSchema, "params"), usuarioController.deletarUsuario);
+export default router;

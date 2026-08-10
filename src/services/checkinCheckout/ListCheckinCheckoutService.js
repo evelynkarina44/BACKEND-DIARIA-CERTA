@@ -1,9 +1,9 @@
-import { CheckinCheckoutRepository } from "../../repositories/checkinCheckoutRepository";
+import { CheckinCheckoutRepository } from "../../repositories/checkinCheckoutRepository.js";
 
 const checkinCheckoutRepository = new CheckinCheckoutRepository();
 
 export class ListCheckinCheckoutService {
   async execute() {
-    return checkinCheckoutRepository.list();
+    return checkinCheckoutRepository.findAll();
   }
 }

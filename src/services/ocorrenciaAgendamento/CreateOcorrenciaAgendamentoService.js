@@ -1,9 +1,7 @@
-import { OcorrenciaAgendamentoRepository } from "../../repositories/ocorrenciaAgendamentoRepository";
-
-const ocorrenciaAgendamentoRepository = new OcorrenciaAgendamentoRepository();
+import { OcorrenciaAgendamentoRepository } from '../../repositories/ocorrenciaAgendamentoRepository.js';
+import { requireAppointmentParticipant } from './OcorrenciaPolicy.js';
 
 export class CreateOcorrenciaAgendamentoService {
-  async execute(data) {
-    return ocorrenciaAgendamentoRepository.create(data);
-  }
+  constructor(repository = new OcorrenciaAgendamentoRepository()) { this.repository = repository; }
+  async execute(data, auth) { await requireAppointmentParticipant(data.id_agendamento, auth); return this.repository.create(data); }
 }

@@ -1,4 +1,4 @@
-import { DiaristaServicoRepository } from "../../repositories/diaristaServicoRepository";
+import { DiaristaServicoRepository } from "../../repositories/diaristaServicoRepository.js";
 
 const diaristaServicoRepository = new DiaristaServicoRepository();
 

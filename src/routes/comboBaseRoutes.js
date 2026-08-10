@@ -1,17 +1,17 @@
-import { express } from 'express';
-import { ComboBaseController } from '../controllers/comboBaseController';
+import { Router } from 'express';
+import { ComboBaseController } from '../controllers/comboBaseController.js';
+import { authenticate, authorizeRoles } from '../middlewares/auth.js';
+import { validate } from '../middlewares/validate.js';
+import { ownComboBase, requireOwnProfileInBody } from '../middlewares/ownership.js';
+import { createComboBaseSchema, idSchema, listQuerySchema, updateComboBaseSchema } from '../schemas/apiSchemas.js';
 
-export const router = express.Router();
+const router = Router();
+const controller = new ComboBaseController();
 
-const comboBaseController = new ComboBaseController();
+router.get('/', validate(listQuerySchema, 'query'), controller.listarComboBases);
+router.get('/:id', validate(idSchema, 'params'), controller.buscarComboBasePorId);
+router.post('/', authenticate, authorizeRoles('diarista'), validate(createComboBaseSchema), requireOwnProfileInBody('id_diarista', 'id_diarista'), controller.criarComboBase);
+router.put('/:id', authenticate, authorizeRoles('diarista'), validate(idSchema, 'params'), ownComboBase, validate(updateComboBaseSchema), controller.atualizarComboBase);
+router.delete('/:id', authenticate, authorizeRoles('diarista'), validate(idSchema, 'params'), ownComboBase, controller.deletarComboBase);
 
-router.get('/', comboBaseController.listarComboBases);
-
-router.get('/:id', comboBaseController.buscarComboBasePorId);
-
-router.post('/', comboBaseController.criarComboBase);
-
-router.put('/:id', comboBaseController.atualizarComboBase);
-
-router.delete('/:id', comboBaseController.deletarComboBase);
-
+export default router;

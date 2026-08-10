@@ -1,9 +1,6 @@
-import { DiaristaRepository } from "../../repositories/diaristaRepository";
-
-const diaristaRepository = new DiaristaRepository();
+import { DiaristaSearchService } from './DiaristaSearchService.js';
 
 export class ListDiaristasService {
-  async execute() {
-    return diaristaRepository.findAll();
-  }
+  constructor(searchService = new DiaristaSearchService()) { this.searchService = searchService; }
+  execute(query) { return this.searchService.list(query); }
 }

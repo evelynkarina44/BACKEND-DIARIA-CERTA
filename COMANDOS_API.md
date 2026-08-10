@@ -1,290 +1,187 @@
-# Comandos da API
+# API Diária Certa
 
-Base URL:
+Base local: `http://localhost:3000`
 
-```text
-http://localhost:3000
+## Swagger / OpenAPI
+
+Com a API em execução, acesse:
+
+- Swagger UI: `http://localhost:3000/api-docs`
+- Contrato OpenAPI 3.0.3 em JSON: `http://localhost:3000/api-docs.json`
+
+Use o botão **Authorize** do Swagger UI com o token obtido no login. A interface
+separa as operações por domínio e indica quais rotas exigem autenticação.
+
+## Preparação
+
+```powershell
+npm install
+npm run prisma:generate
 ```
 
-## Usuario
+O schema foi evoluído e a migration está em
+`prisma/migrations/20260809000000_backend_evolution/migration.sql`.
+Antes de aplicá-la, elimine eventuais duplicidades nos perfis, favoritos e tabelas
+de associação que passarão a ter chaves únicas. A migration não é executada ao
+iniciar a API.
 
-### Criar usuario
+Variáveis necessárias:
 
-#### curl
-
-```bash
-curl -X POST "http://localhost:3000/api/usuario" ^
-  -H "Content-Type: application/json" ^
-  -d "{\"dados\":{\"nome\":\"Maria Silva\",\"email\":\"maria.silva@email.com\",\"senha\":\"123456\",\"telefone\":\"11999999999\",\"foto_perfil\":\"https://exemplo.com/foto.jpg\"}}"
+```dotenv
+DATABASE_URL="mysql://usuario:senha@localhost:3306/diaria_certa"
+JWT_SECRET="troque-por-um-segredo-longo-e-aleatorio"
+JWT_EXPIRES_IN="8h"
+PORT=3000
+CORS_ORIGIN="http://localhost:5173"
+APP_TIMEZONE_OFFSET_MINUTES=180
 ```
 
-#### Postman
+## Autenticação
 
-- Method: `POST`
-- URL: `http://localhost:3000/api/usuario`
-- Headers: `Content-Type: application/json`
-- Body > raw > JSON:
+Criar usuário:
 
-```json
+```http
+POST /api/usuario
+Content-Type: application/json
+
 {
-  "dados": {
-    "nome": "Maria Silva",
-    "email": "maria.silva@email.com",
-    "senha": "123456",
-    "telefone": "11999999999",
-    "foto_perfil": "https://exemplo.com/foto.jpg"
-  }
+  "nome": "Maria Silva",
+  "email": "maria@example.com",
+  "senha": "senha-segura",
+  "telefone": "11999999999",
+  "foto_perfil": ""
 }
 ```
 
-### Buscar todos os usuarios
+Login:
 
-#### curl
+```http
+POST /api/auth/login
+Content-Type: application/json
 
-```bash
-curl -X GET "http://localhost:3000/api/usuario"
+{ "email": "maria@example.com", "senha": "senha-segura" }
 ```
 
-#### Postman
+Envie o token nas rotas privadas:
 
-- Method: `GET`
-- URL: `http://localhost:3000/api/usuario`
-- Sem body
-
-### Buscar usuario por id
-
-#### curl
-
-```bash
-curl -X GET "http://localhost:3000/api/usuario/1"
+```http
+Authorization: Bearer <token>
 ```
 
-#### Postman
+`GET /api/auth/me` retorna o usuário e os perfis disponíveis. Um mesmo usuário
+pode possuir um perfil em `/api/cliente` e outro em `/api/diarista`.
 
-- Method: `GET`
-- URL: `http://localhost:3000/api/usuario/1`
-- Sem body
+## Recursos e CRUDs existentes
 
-## Cliente
+Os CRUDs usam JSON direto, sem o envelope antigo `{"dados": ...}`.
 
-### Criar cliente
+| Recurso | Base | Acesso de leitura | Escrita |
+|---|---|---|---|
+| Usuário | `/api/usuario` | próprio usuário | próprio usuário |
+| Cliente | `/api/cliente` | próprio perfil | próprio perfil |
+| Diarista | `/api/diarista` | público | própria diarista |
+| Endereço | `/api/endereco` | proprietário | proprietário |
+| Serviço | `/api/servico` | público | autenticado |
+| Serviço da diarista | `/api/diarista-servico` | público | própria diarista |
+| Combo base | `/api/combo-base` | público | própria diarista |
+| Serviço do combo | `/api/combo-servico` | público | dona do combo |
+| Disponibilidade | `/api/disponibilidade` | público | própria diarista |
+| Agendamento | `/api/agendamento` | participantes | conforme transição |
+| Serviços agendados | `/api/agendamento-servico` | participantes | criados pelo agendamento |
+| Avaliação | `/api/avaliacao` | pública ou participante | autor |
+| Favorito | `/api/favorito` | próprio cliente | próprio cliente |
+| Denúncia | `/api/denuncia` | denunciante | denunciante |
+| Ocorrência | `/api/ocorrencia` | participantes | participantes |
 
-#### curl
+Listagens aceitam `page` e `limit` quando aplicável. IDs usam `/:id`.
 
-```bash
-curl -X POST "http://localhost:3000/api/cliente" ^
-  -H "Content-Type: application/json" ^
-  -d "{\"dados\":{\"id_usuario\":1,\"data_nascimento\":\"1995-08-20\",\"qtd_comodos\":3,\"tamanho_casa\":\"pequena\"}}"
+## Busca de diaristas
+
+```http
+GET /api/diarista?nome=ana&cidade=Campinas&avaliacao_min=4&preco_max=200&id_servico=1&ordenar=avaliacao&page=1&limit=20
 ```
 
-#### Postman
+Filtros: `nome`, `bairro`, `cidade`, `estado`, `avaliacao_min`, `preco_min`,
+`preco_max`, `id_servico` e `ordenar` (`avaliacao`, `preco_asc`, `preco_desc`,
+`nome`). O perfil detalhado é `GET /api/diarista/:id`.
 
-- Method: `POST`
-- URL: `http://localhost:3000/api/cliente`
-- Headers: `Content-Type: application/json`
-- Body > raw > JSON:
+Estatísticas privadas: `GET /api/diarista/:id/estatisticas`.
 
-```json
+## Agendamento
+
+Primeiro solicite uma estimativa:
+
+```http
+POST /api/agendamento/estimativa
+Authorization: Bearer <token-cliente>
+Content-Type: application/json
+
 {
-  "dados": {
-    "id_usuario": 1,
-    "data_nascimento": "1995-08-20T00:00:00.000Z",
-    "qtd_comodos": 3,
-    "tamanho_casa": "pequena"
-  }
+  "id_diarista": 1,
+  "id_endereco": 1,
+  "data_agendamento": "2030-01-20",
+  "horario_inicio": "08:00",
+  "horario_fim": "12:00",
+  "qtd_comodos": 4,
+  "tamanho_residencia": "media",
+  "observacoes": "Há animais no local",
+  "servicos": [
+    { "id_diarista_servico": 1 },
+    { "id_diarista_servico": 2 }
+  ]
 }
 ```
 
-### Buscar todos os clientes
+Para confirmar, envie o mesmo payload a `POST /api/agendamento`. O preço dos
+serviços é copiado para o agendamento e não muda se a diarista alterar o catálogo.
+A solicitação expira 48 horas após a criação.
 
-#### curl
+Transições:
 
-```bash
-curl -X GET "http://localhost:3000/api/cliente"
-```
+- `POST /api/agendamento/:id/aceitar` — diarista;
+- `POST /api/agendamento/:id/recusar` — diarista;
+- `POST /api/agendamento/:id/cancelar` — participante, body opcional `descricao`;
+- `GET /api/agendamento?visao=solicitacoes|futuros|historico|todos`;
+- `GET /api/agendamento?status=Pendente`.
 
-#### Postman
+Ao aceitar, o Service verifica conflito com horários já aceitos ou em andamento.
 
-- Method: `GET`
-- URL: `http://localhost:3000/api/cliente`
-- Sem body
+## Check-in, pagamento e check-out
 
-### Buscar cliente por id
+- `POST /api/checkin-checkout/agendamento/:id/solicitar` — diarista;
+- `POST /api/checkin-checkout/agendamento/:id/confirmar-pagamento` — cliente;
+- `POST /api/checkin-checkout/agendamento/:id/checkout` — diarista;
+- `GET /api/checkin-checkout/agendamento/:id` — participantes.
 
-#### curl
+O endpoint de confirmação registra o pagamento e inicia o serviço. Em produção,
+ele deve ser chamado somente após confirmação do gateway/webhook escolhido; a
+integração com um provedor financeiro específico não faz parte deste repositório.
 
-```bash
-curl -X GET "http://localhost:3000/api/cliente/1"
-```
+## Avaliações
 
-#### Postman
+```http
+POST /api/avaliacao
+Authorization: Bearer <token>
+Content-Type: application/json
 
-- Method: `GET`
-- URL: `http://localhost:3000/api/cliente/1`
-- Sem body
-
-## Diarista
-
-### Criar diarista
-
-#### curl
-
-```bash
-curl -X POST "http://localhost:3000/api/diarista" ^
-  -H "Content-Type: application/json" ^
-  -d "{\"dados\":{\"id_usuario\":2,\"descricao\":\"Profissional com experiencia em limpeza residencial.\",\"frequencia_resposta\":\"rapida\",\"qtd_max_comodos\":5,\"avaliacao_media\":4.8}}"
-```
-
-#### Postman
-
-- Method: `POST`
-- URL: `http://localhost:3000/api/diarista`
-- Headers: `Content-Type: application/json`
-- Body > raw > JSON:
-
-```json
 {
-  "dados": {
-    "id_usuario": 2,
-    "descricao": "Profissional com experiencia em limpeza residencial.",
-    "frequencia_resposta": "rapida",
-    "qtd_max_comodos": 5,
-    "avaliacao_media": 4.8
-  }
+  "id_agendamento": 1,
+  "nota": 4.8,
+  "comentario": "Ótimo serviço",
+  "publica": true,
+  "anonima": false
 }
 ```
 
-### Buscar todas as diaristas
+Somente agendamentos concluídos aceitam avaliação. Cliente e diarista podem
+avaliar uma vez cada; a média profissional é recalculada automaticamente.
 
-#### curl
+## Execução e verificação
 
-```bash
-curl -X GET "http://localhost:3000/api/diarista"
+```powershell
+npm run dev
+npm test
+npm run prisma:validate
 ```
 
-#### Postman
-
-- Method: `GET`
-- URL: `http://localhost:3000/api/diarista`
-- Sem body
-
-### Buscar diarista por id
-
-#### curl
-
-```bash
-curl -X GET "http://localhost:3000/api/diarista/1"
-```
-
-#### Postman
-
-- Method: `GET`
-- URL: `http://localhost:3000/api/diarista/1`
-- Sem body
-
-## Combo Base
-
-### Criar combo base
-
-#### curl
-
-```bash
-curl -X POST "http://localhost:3000/api/combo_base" ^
-  -H "Content-Type: application/json" ^
-  -d "{\"dados\":{\"id_diarista\":1,\"nome_combo\":\"Combo Casa Pequena\",\"valor_base\":120.50,\"descricao\":\"Limpeza completa para casas pequenas\",\"qtd_comodos_casa\":3,\"atende_casa_pequena\":true,\"atende_casa_media\":false,\"atende_casa_grande\":false}}"
-```
-
-#### Postman
-
-- Method: `POST`
-- URL: `http://localhost:3000/api/combo_base`
-- Headers: `Content-Type: application/json`
-- Body > raw > JSON:
-
-```json
-{
-  "dados": {
-    "id_diarista": 1,
-    "nome_combo": "Combo Casa Pequena",
-    "valor_base": 120.5,
-    "descricao": "Limpeza completa para casas pequenas",
-    "qtd_comodos_casa": 3,
-    "atende_casa_pequena": true,
-    "atende_casa_media": false,
-    "atende_casa_grande": false
-  }
-}
-```
-
-### Buscar todos os combos base
-
-#### curl
-
-```bash
-curl -X GET "http://localhost:3000/api/combo_base"
-```
-
-#### Postman
-
-- Method: `GET`
-- URL: `http://localhost:3000/api/combo_base`
-- Sem body
-
-### Buscar combo base por id
-
-#### curl
-
-```bash
-curl -X GET "http://localhost:3000/api/combo_base/1"
-```
-
-#### Postman
-
-- Method: `GET`
-- URL: `http://localhost:3000/api/combo_base/1`
-- Sem body
-
-### Atualizar combo base
-
-#### curl
-
-```bash
-curl -X PUT "http://localhost:3000/api/combo_base/1" ^
-  -H "Content-Type: application/json" ^
-  -d "{\"dados\":{\"nome_combo\":\"Combo Casa Media\",\"valor_base\":150.00,\"descricao\":\"Atualizado\",\"qtd_comodos_casa\":4,\"atende_casa_pequena\":true,\"atende_casa_media\":true,\"atende_casa_grande\":false}}"
-```
-
-#### Postman
-
-- Method: `PUT`
-- URL: `http://localhost:3000/api/combo_base/1`
-- Headers: `Content-Type: application/json`
-- Body > raw > JSON:
-
-```json
-{
-  "dados": {
-    "nome_combo": "Combo Casa Media",
-    "valor_base": 150.0,
-    "descricao": "Atualizado",
-    "qtd_comodos_casa": 4,
-    "atende_casa_pequena": true,
-    "atende_casa_media": true,
-    "atende_casa_grande": false
-  }
-}
-```
-
-### Deletar combo base
-
-#### curl
-
-```bash
-curl -X DELETE "http://localhost:3000/api/combo_base/1"
-```
-
-#### Postman
-
-- Method: `DELETE`
-- URL: `http://localhost:3000/api/combo_base/1`
-- Sem body
+Health check: `GET /health`.

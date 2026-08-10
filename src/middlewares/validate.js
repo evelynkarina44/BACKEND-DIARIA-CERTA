@@ -1,4 +1,4 @@
-import { ValidationError } from "../errors";
+import { ValidationError } from "../errors/index.js";
 
 export function validate(schema, source = "body") {
     return (req, res, next) => {

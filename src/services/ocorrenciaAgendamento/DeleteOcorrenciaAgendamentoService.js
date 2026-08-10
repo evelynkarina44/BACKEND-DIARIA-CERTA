@@ -1,9 +1,7 @@
-import { OcorrenciaAgendamentoRepository } from "../../repositories/ocorrenciaAgendamentoRepository";
-
-const ocorrenciaAgendamentoRepository = new OcorrenciaAgendamentoRepository();
+import { OcorrenciaAgendamentoRepository } from '../../repositories/ocorrenciaAgendamentoRepository.js';
+import { requireOccurrenceOwner } from './OcorrenciaPolicy.js';
 
 export class DeleteOcorrenciaAgendamentoService {
-  async execute(id) {
-    return ocorrenciaAgendamentoRepository.delete(id);
-  }
+  constructor(repository = new OcorrenciaAgendamentoRepository()) { this.repository = repository; }
+  async execute(id, auth) { await requireOccurrenceOwner(id, auth); return this.repository.delete(id); }
 }

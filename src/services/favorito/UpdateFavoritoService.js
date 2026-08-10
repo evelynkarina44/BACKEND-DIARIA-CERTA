@@ -1,4 +1,4 @@
-import { FavoritoRepository } from "../../repositories/favoritoRepository";
+import { FavoritoRepository } from "../../repositories/favoritoRepository.js";
 
 const favoritoRepository = new FavoritoRepository();
 

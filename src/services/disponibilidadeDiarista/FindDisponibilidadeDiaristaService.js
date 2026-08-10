@@ -1,4 +1,4 @@
-import { DisponibilidadeDiaristaRepository } from "../../repositories/disponibilidadeDiaristaRepository";
+import { DisponibilidadeDiaristaRepository } from "../../repositories/disponibilidadeDiaristaRepository.js";
 
 const disponibilidadeDiaristaRepository = new DisponibilidadeDiaristaRepository();
 

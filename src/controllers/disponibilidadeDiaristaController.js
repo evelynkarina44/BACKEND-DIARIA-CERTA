@@ -1,67 +1,12 @@
-import { CreateDisponibilidadeDiaristaService } from '../services/disponibilidadeDiarista/CreateDisponibilidadeDiaristaService';
-import { FindDisponibilidadeDiaristaService } from '../services/disponibilidadeDiarista/FindDisponibilidadeDiaristaService';
-import { ListDisponibilidadeDiaristaService } from '../services/disponibilidadeDiarista/ListDisponibilidadeDiaristaService';
-import { UpdateDisponibilidadeDiaristaService } from '../services/disponibilidadeDiarista/UpdateDisponibilidadeDiaristaService';
-import { DeleteDisponibilidadeDiaristaService } from '../services/disponibilidadeDiarista/DeleteDisponibilidadeDiaristaService';
+import { CrudController } from './CrudController.js';
+import { CreateDisponibilidadeDiaristaService } from '../services/disponibilidadeDiarista/CreateDisponibilidadeDiaristaService.js';
+import { FindDisponibilidadeDiaristaService } from '../services/disponibilidadeDiarista/FindDisponibilidadeDiaristaService.js';
+import { ListDisponibilidadeDiaristaService } from '../services/disponibilidadeDiarista/ListDisponibilidadeDiaristaService.js';
+import { UpdateDisponibilidadeDiaristaService } from '../services/disponibilidadeDiarista/UpdateDisponibilidadeDiaristaService.js';
+import { DeleteDisponibilidadeDiaristaService } from '../services/disponibilidadeDiarista/DeleteDisponibilidadeDiaristaService.js';
 
-import { NotFoundError } from "../errors/NotFoundError";
-import { BadRequestError } from '../errors/BadRequestError';
-
-export class DisponibilidadeDiaristaController {
-
-    async listarDisponibilidades(req, res) {
-        try {
-            const service = new ListDisponibilidadeDiaristaService();
-            const disponibilidades = await service.execute();
-            return res.status(200).json(disponibilidades);
-        } catch (error) {
-            throw new BadRequestError('Erro ao listar disponibilidades');
-        }
-    }
-
-     async buscarDisponibilidadePorId(req, res) {
-        try {
-            const { id } = req.params;
-            const service = new FindDisponibilidadeDiaristaService();
-            const disponibilidade = await service.execute(id);
-            if (!disponibilidade) {
-                throw new NotFoundError('Disponibilidade não encontrada');
-            }
-            return res.status(200).json(disponibilidade);
-        } catch (error) {
-            throw new BadRequestError('Erro ao buscar disponibilidade');
-        }
-    }
-
-    async criarDisponibilidade(req, res) {
-        try {
-            const service = new CreateDisponibilidadeDiaristaService();
-            const disponibilidade = await service.execute(req.body);
-            return res.status(201).json(disponibilidade);
-        } catch (error) {
-            throw new BadRequestError('Erro ao criar disponibilidade');
-        }
-    }
-
-    async atualizarDisponibilidade(req, res) {
-        try {
-            const { id } = req.params;
-            const service = new UpdateDisponibilidadeDiaristaService();
-            const disponibilidade = await service.execute(id, req.body);
-            return res.status(200).json(disponibilidade);
-        } catch (error) {
-            throw new BadRequestError('Erro ao atualizar disponibilidade');
-        }
-    }
-
-    async deletarDisponibilidade(req, res) {
-        try {
-            const { id } = req.params;
-            const service = new DeleteDisponibilidadeDiaristaService();
-            const disponibilidade = await service.execute(id);
-            return res.status(200).json(disponibilidade);
-        } catch (error) {
-            throw new BadRequestError('Erro ao excluir disponibilidade');
-        }
-    }
+export class DisponibilidadeDiaristaController extends CrudController {
+  constructor() {
+    super({ services: { create: CreateDisponibilidadeDiaristaService, find: FindDisponibilidadeDiaristaService, list: ListDisponibilidadeDiaristaService, update: UpdateDisponibilidadeDiaristaService, delete: DeleteDisponibilidadeDiaristaService }, methods: { list: 'listarDisponibilidades', find: 'buscarDisponibilidadePorId', create: 'criarDisponibilidade', update: 'atualizarDisponibilidade', delete: 'deletarDisponibilidade' }, resourceName: 'Disponibilidade' });
+  }
 }

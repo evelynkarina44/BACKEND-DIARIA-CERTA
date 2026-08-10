@@ -1,17 +1,16 @@
-import { express } from 'express';
-import { AvaliacaoController } from '../controllers/AvaliacaoController';
+import { Router } from 'express';
+import { AvaliacaoController } from '../controllers/avaliacaoController.js';
+import { authenticate } from '../middlewares/auth.js';
+import { validate } from '../middlewares/validate.js';
+import { createAvaliacaoSchema, idSchema, listQuerySchema, updateAvaliacaoSchema } from '../schemas/apiSchemas.js';
 
-export const router = express.Router();
+const router = Router();
+const controller = new AvaliacaoController();
 
-const avaliacaoController = new AvaliacaoController();
+router.get('/', validate(listQuerySchema, 'query'), controller.listarAvaliacoes);
+router.get('/:id', validate(idSchema, 'params'), controller.buscarAvaliacaoPorId);
+router.post('/', authenticate, validate(createAvaliacaoSchema), controller.criarAvaliacao);
+router.put('/:id', authenticate, validate(idSchema, 'params'), validate(updateAvaliacaoSchema), controller.atualizarAvaliacao);
+router.delete('/:id', authenticate, validate(idSchema, 'params'), controller.deletarAvaliacao);
 
-router.get('/', avaliacaoController.listarAvaliacao);
-
-router.get('/:id', avaliacaoController.buscarAvaliacaoPorId);
-
-router.post('/', avaliacaoController.criarAvaliacao);
-
-router.put('/:id', avaliacaoController.atualizarAvaliacao);
-
-router.delete('/:id', avaliacaoController.deletarAvaliacao);
-
+export default router;

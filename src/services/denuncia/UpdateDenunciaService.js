@@ -1,9 +1,7 @@
-import { EnderecoRepository } from "../../repositories/enderecoRepository";
-
-const denunciaRepository = new DenunciaRepository();
+import { DenunciaRepository } from '../../repositories/denunciaRepository.js';
+import { ForbiddenError, NotFoundError } from '../../errors/index.js';
 
 export class UpdateDenunciaService {
-  async execute(id, data) {
-    return denunciaRepository.update(id, data);
-  }
+  constructor(repository = new DenunciaRepository()) { this.repository = repository; }
+  async execute(id, data, auth) { const current = await this.repository.findById(id); if (!current) throw new NotFoundError('Denúncia não encontrada'); if (current.id_usuario_denunciante !== auth?.id_usuario) throw new ForbiddenError('Denúncia pertence a outro usuário'); return this.repository.update(id, data); }
 }

@@ -1,16 +1,17 @@
-import { express } from 'express';
-import { ClienteController } from '../controllers/clienteController';
+import { Router } from 'express';
+import { ClienteController } from '../controllers/clienteController.js';
+import { authenticate } from '../middlewares/auth.js';
+import { validate } from '../middlewares/validate.js';
+import { createClienteSchema, idSchema, listQuerySchema, updateClienteSchema } from '../schemas/apiSchemas.js';
 
-export const router = express.Router();
+const router = Router();
+const controller = new ClienteController();
 
-const clienteController = new ClienteController();
+router.use(authenticate);
+router.get('/', validate(listQuerySchema, 'query'), controller.listarClientes);
+router.get('/:id', validate(idSchema, 'params'), controller.buscarClientePorId);
+router.post('/', validate(createClienteSchema), controller.criarCliente);
+router.put('/:id', validate(idSchema, 'params'), validate(updateClienteSchema), controller.atualizarCliente);
+router.delete('/:id', validate(idSchema, 'params'), controller.deletarCliente);
 
-router.get('/', clienteController.listarClientes);
-
-router.get('/:id_cliente', clienteController.buscarClientePorId);
-
-router.post('/', clienteController.criarCliente);
-
-router.put('/:id_cliente', clienteController.atualizarCliente);
-
-router.delete('/:id_cliente', clienteController.deletarCliente);
+export default router;

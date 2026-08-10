@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { cheBaseSchema } from './usuarioBaseSchema';
+import { checkinCheckoutBaseSchema } from './checkinCheckoutBaseSchema.js';
 
 export const createCheckinCheckoutSchema = checkinCheckoutBaseSchema.omit({
     id_check: true,

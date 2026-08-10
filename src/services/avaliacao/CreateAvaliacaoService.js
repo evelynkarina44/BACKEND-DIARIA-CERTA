@@ -1,9 +1,5 @@
-import { AvaliacaoRepository } from "../../repositories/avaliacaoRepository";
-
-const avaliacaoRepository = new AvaliacaoRepository();
-
+import { AvaliacaoWorkflowService } from './AvaliacaoWorkflowService.js';
 export class CreateAvaliacaoService {
-  async execute(data) {
-    return avaliacaoRepository.create(data);
-  }
+  constructor(workflow = new AvaliacaoWorkflowService()) { this.workflow = workflow; }
+  execute(data, auth) { return this.workflow.create(data, auth); }
 }

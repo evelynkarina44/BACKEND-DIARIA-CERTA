@@ -1,9 +1,10 @@
-import { UserRepository } from "../../repositories/userRepository";
+import { UserRepository } from '../../repositories/userRepository.js';
+import { ForbiddenError } from '../../errors/index.js';
 
-const userRepository = new UserRepository();
-
-export class DeleteUserService {
-  async execute(id_usuario) {
-    return userRepository.delete(id_usuario);
+export class DeleteUsuarioService {
+  constructor(repository = new UserRepository()) { this.repository = repository; }
+  execute(id_usuario, auth) {
+    if (Number(id_usuario) !== auth?.id_usuario) throw new ForbiddenError('Acesso permitido apenas ao próprio usuário');
+    return this.repository.delete(id_usuario);
   }
 }

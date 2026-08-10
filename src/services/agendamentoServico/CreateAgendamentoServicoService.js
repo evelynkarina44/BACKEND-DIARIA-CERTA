@@ -1,4 +1,4 @@
-import { AgendamentoServicoRepository } from "../../repositories/agendamentoServicoRepository";
+import { AgendamentoServicoRepository } from "../../repositories/agendamentoServicoRepository.js";
 
 const agendamentoServicoRepository = new AgendamentoServicoRepository();
 

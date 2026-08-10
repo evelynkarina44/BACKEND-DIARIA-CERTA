@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { usuarioBaseSchema } from './usuarioBaseSchema';
-import { clienteBaseSchema } from '../cliente/clienteBaseSchema';
-import { diaristaBaseSchema } from '../diarista/diaristaBaseSchema';
+import { usuarioBaseSchema } from './usuarioBaseSchema.js';
+import { clienteBaseSchema } from '../cliente/clienteBaseSchema.js';
+import { diaristaBaseSchema } from '../diarista/diaristaBaseSchema.js';
 
 export const usuarioWithRelationsSchema = usuarioBaseSchema.extend({
     cliente: z.array(clienteBaseSchema.omit({

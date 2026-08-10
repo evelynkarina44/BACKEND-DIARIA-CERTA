@@ -1,17 +1,14 @@
-import { express } from 'express';
-import { AgendamentoServicoController } from '../controllers/AgendamentoServicoController';
+import { Router } from 'express';
+import { AgendamentoServicoController } from '../controllers/agendamentoServicoController.js';
+import { authenticate } from '../middlewares/auth.js';
+import { validate } from '../middlewares/validate.js';
+import { idSchema, listQuerySchema } from '../schemas/apiSchemas.js';
 
-export const router = express.Router();
+const router = Router();
+const controller = new AgendamentoServicoController();
 
-const agendamentoServicoController = new AgendamentoServicoController();
+router.use(authenticate);
+router.get('/', validate(listQuerySchema, 'query'), controller.listarAgendamentoServicos);
+router.get('/:id', validate(idSchema, 'params'), controller.buscarAgendamentoServicoPorId);
 
-router.get('/', agendamentoServicoController.listarAgendamentoServico);
-
-router.get('/:id', agendamentoServicoController.buscarAgendamentoServicoPorId);
-
-router.post('/', agendamentoServicoController.criarAgendamentoServico);
-
-router.put('/:id', agendamentoServicoController.atualizarAgendamentoServico);
-
-router.delete('/:id', agendamentoServicoController.deletarAgendamentoServico);
-
+export default router;

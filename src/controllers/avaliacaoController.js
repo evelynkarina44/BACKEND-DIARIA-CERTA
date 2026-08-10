@@ -1,67 +1,12 @@
-import { CreateAvaliacaoService } from '../services/avaliacao/CreateAvaliacaoService';
-import { FindAvaliacaoService } from '../services/avaliacao/FindAvaliacaoService';
-import { ListAvaliacaoService } from '../services/avaliacao/ListAvaliacaoService';
-import { UpdateAvaliacaoService } from '../services/avaliacao/UpdateAvaliacaoService';
-import { DeleteAvaliacaoService } from '../services/avaliacao/DeleteAvaliacaoService';
+import { CrudController } from './CrudController.js';
+import { CreateAvaliacaoService } from '../services/avaliacao/CreateAvaliacaoService.js';
+import { FindAvaliacaoService } from '../services/avaliacao/FindAvaliacaoService.js';
+import { ListAvaliacaoService } from '../services/avaliacao/ListAvaliacaoService.js';
+import { UpdateAvaliacaoService } from '../services/avaliacao/UpdateAvaliacaoService.js';
+import { DeleteAvaliacaoService } from '../services/avaliacao/DeleteAvaliacaoService.js';
 
-import { NotFoundError } from "../errors/NotFoundError";
-import { BadRequestError } from '../errors/BadRequestError';
-
-export class AvaliacaoController {
-
-    async listarAvaliacao(req, res) {
-        try {
-            const service = new ListAvaliacaoService();
-            const Avaliacao = await service.execute();
-            return res.status(200).json(Avaliacao);
-        } catch (error) {
-            throw new BadRequestError('Erro ao listar avaliacaos');
-        }
-    }
-
-    async buscarAvaliacaoPorId(req, res) {
-        try {
-            const { id } = req.params;
-            const service = new FindAvaliacaoService();
-            const Avaliacao = await service.execute(id);
-            if (!Avaliacao) {
-                throw new NotFoundError('Avaliacao não encontrado');
-            }
-            return res.status(200).json(Avaliacao);
-        } catch (error) {
-            throw new BadRequestError('Erro ao buscar avaliacao');
-        }
-    }
-
-    async criarAvaliacao(req, res) {
-        try {
-            const service = new CreateAvaliacaoService();
-            const Avaliacao = await service.execute(req.body);
-            return res.status(201).json(Avaliacao);
-        } catch (error) {
-            throw new BadRequestError('Erro ao criar avaliacao');
-        }
-    }
-
-    async atualizarAvaliacao(req, res) {
-        try {
-            const { id } = req.params;
-            const service = new UpdateAvaliacaoService();
-            const Avaliacao = await service.execute(id, req.body);
-            return res.status(200).json(Avaliacao);
-        } catch (error) {
-            throw new BadRequestError('Erro ao atualizar avaliacao');
-        }
-    }
-
-    async deletarAvaliacao(req, res) {
-        try {
-            const { id } = req.params;
-            const service = new DeleteAvaliacaoService();
-            const Avaliacao = await service.execute(id);
-            return res.status(200).json(Avaliacao);
-        } catch (error) {
-            throw new BadRequestError('Erro ao excluir avaliacao');
-        }
-    }
+export class AvaliacaoController extends CrudController {
+  constructor() {
+    super({ services: { create: CreateAvaliacaoService, find: FindAvaliacaoService, list: ListAvaliacaoService, update: UpdateAvaliacaoService, delete: DeleteAvaliacaoService }, methods: { list: 'listarAvaliacoes', find: 'buscarAvaliacaoPorId', create: 'criarAvaliacao', update: 'atualizarAvaliacao', delete: 'deletarAvaliacao' }, resourceName: 'Avaliação' });
+  }
 }

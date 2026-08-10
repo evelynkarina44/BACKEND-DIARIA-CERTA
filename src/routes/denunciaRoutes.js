@@ -1,16 +1,17 @@
-import { express } from 'express';
-import { DenunciaController } from '../controllers/denunciaController';
+import { Router } from 'express';
+import { DenunciaController } from '../controllers/denunciaController.js';
+import { authenticate } from '../middlewares/auth.js';
+import { validate } from '../middlewares/validate.js';
+import { createDenunciaSchema, idSchema, listQuerySchema, updateDenunciaSchema } from '../schemas/apiSchemas.js';
 
-const router = express.Router();
+const router = Router();
+const controller = new DenunciaController();
 
-const denunciaController = new DenunciaController();
+router.use(authenticate);
+router.get('/', validate(listQuerySchema, 'query'), controller.listarDenuncias);
+router.get('/:id', validate(idSchema, 'params'), controller.buscarDenunciaPorId);
+router.post('/', validate(createDenunciaSchema), controller.criarDenuncia);
+router.put('/:id', validate(idSchema, 'params'), validate(updateDenunciaSchema), controller.atualizarDenuncia);
+router.delete('/:id', validate(idSchema, 'params'), controller.deletarDenuncia);
 
-router.get('/', denunciaController.listarDenuncias);
-
-router.get('/:id', denunciaController.buscarDenunciaPorId);
-
-router.post('/', denunciaController.criarDenuncia);
-
-router.put('/:id', denunciaController.atualizarDenuncia);
-
-router.delete('/:id', denunciaController.deletarDenuncia);
+export default router;

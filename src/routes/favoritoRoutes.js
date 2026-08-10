@@ -1,16 +1,16 @@
-import { express } from 'express';
-import { FavoritoController } from '../controllers/favoritoController';
+import { Router } from 'express';
+import { FavoritoController } from '../controllers/favoritoController.js';
+import { authenticate, authorizeRoles } from '../middlewares/auth.js';
+import { validate } from '../middlewares/validate.js';
+import { createFavoritoSchema, idSchema, listQuerySchema } from '../schemas/apiSchemas.js';
 
-const router = express.Router();
+const router = Router();
+const controller = new FavoritoController();
 
-const favoritoController = new FavoritoController();
+router.use(authenticate, authorizeRoles('cliente'));
+router.get('/', validate(listQuerySchema, 'query'), controller.listarFavoritos);
+router.get('/:id', validate(idSchema, 'params'), controller.buscarFavoritoPorId);
+router.post('/', validate(createFavoritoSchema), controller.criarFavorito);
+router.delete('/:id', validate(idSchema, 'params'), controller.deletarFavorito);
 
-router.get('/', favoritoController.listarFavoritos);
-
-router.get('/:id', favoritoController.buscarFavoritoPorId);
-
-router.post('/', favoritoController.criarFavorito);
-
-router.put('/:id', favoritoController.atualizarFavorito);
-
-router.delete('/:id', favoritoController.deletarFavorito);
+export default router;

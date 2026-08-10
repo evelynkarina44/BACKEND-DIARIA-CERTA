@@ -1,81 +1,12 @@
-import prisma from "../lib/prisma";
-import { DatabaseError } from "../errors/DatabaseError";
+import prisma from '../lib/prisma.js';
+import { BaseRepository } from './BaseRepository.js';
 
-export class DiaristaRepository {
-    async findAll() {
-        try {
-            return await prisma.diarista.findMany();
-        } catch (error) {
-            throw new DatabaseError(
-                "Failed to find diaristas",
-                error.message
-            );
-        }
-    };
+export class DiaristaRepository extends BaseRepository {
+  constructor() {
+    super(prisma.diarista, 'id_diarista');
+  }
 
-    async findById(id_diarista) {
-        try {
-            return await prisma.diarista.findUnique({
-                where: { id_diarista: Number(id_diarista) }
-            });
-        } catch (error) {
-            throw new DatabaseError(
-                "Failed to find diarista",
-                error.message
-            );
-        }
-    }
-
-    async findByIdUsuario(id_usuario) {
-        try {
-            return await prisma.diarista.findUnique({
-                where: { id_usuario: Number(id_usuario) }
-            });
-        } catch (error) {
-            throw new DatabaseError(
-                "Failed to find diarista",
-                error.message
-            );
-        }
-    }
-
-    async create(dados) {
-        try {
-            return await prisma.diarista.create({
-                data: dados
-            });
-        } catch (error) {
-            throw new DatabaseError(
-                "Failed to create diarista",
-                error.message
-            );
-        }
-    }
-
-    async update(id_diarista, dados) {
-        try {
-            return await prisma.diarista.update({
-                where: { id_diarista: Number(id_diarista) },
-                data: dados
-            });
-        } catch (error) {
-            throw new DatabaseError(
-                "Failed to update diarista",
-                error.message
-            );
-        }
-    }
-
-    async delete(id_diarista) {
-        try {
-            return await prisma.diarista.delete({
-                where: { id_diarista: Number(id_diarista) }
-            });
-        } catch (error) {
-            throw new DatabaseError(
-                "Failed to delete diarista",
-                error.message
-            );
-        }
-    }
+  findByIdUsuario(id_usuario) {
+    return this.model.findUnique({ where: { id_usuario: Number(id_usuario) } });
+  }
 }

@@ -1,4 +1,4 @@
-import { ComboBaseRepository } from "../../repositories/comboBaseRepository";
+import { ComboBaseRepository } from "../../repositories/comboBaseRepository.js";
 
 const comboBaseRepository = new ComboBaseRepository();
 

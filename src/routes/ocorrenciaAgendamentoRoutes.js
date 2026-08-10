@@ -1,16 +1,17 @@
-import { express } from 'express';
-import { OcorrenciaAgendamentoController } from '../controllers/ocorrenciaAgendamentoController';
+import { Router } from 'express';
+import { OcorrenciaAgendamentoController } from '../controllers/ocorrenciaAgendamentoController.js';
+import { authenticate } from '../middlewares/auth.js';
+import { validate } from '../middlewares/validate.js';
+import { createOcorrenciaSchema, idSchema, listQuerySchema, updateOcorrenciaSchema } from '../schemas/apiSchemas.js';
 
-const router = express.Router();
+const router = Router();
+const controller = new OcorrenciaAgendamentoController();
 
-const ocorrenciaAgendamentoController = new OcorrenciaAgendamentoController();
+router.use(authenticate);
+router.get('/', validate(listQuerySchema, 'query'), controller.listarOcorrencias);
+router.get('/:id', validate(idSchema, 'params'), controller.buscarOcorrenciaPorId);
+router.post('/', validate(createOcorrenciaSchema), controller.criarOcorrencia);
+router.put('/:id', validate(idSchema, 'params'), validate(updateOcorrenciaSchema), controller.atualizarOcorrencia);
+router.delete('/:id', validate(idSchema, 'params'), controller.deletarOcorrencia);
 
-router.get('/', ocorrenciaAgendamentoController.listarOcorrenciasAgendamento);
-
-router.get('/:id', ocorrenciaAgendamentoController.buscarOcorrenciaAgendamentoPorId);
-
-router.post('/', ocorrenciaAgendamentoController.criarOcorrenciaAgendamento);
-
-router.put('/:id', ocorrenciaAgendamentoController.atualizarOcorrenciaAgendamento);
-
-router.delete('/:id', ocorrenciaAgendamentoController.deletarOcorrenciaAgendamento);
+export default router;

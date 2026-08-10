@@ -1,4 +1,4 @@
-import { ServicoRepository } from "../../repositories/servicoRepository";
+import { ServicoRepository } from "../../repositories/servicoRepository.js";
 
 const servicoRepository = new ServicoRepository();
 
