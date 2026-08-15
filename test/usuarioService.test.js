@@ -7,6 +7,7 @@ test('CreateUsuarioService persiste hash e retorna projeção pública', async (
   let persisted;
   const repository = {
     findByEmail: async () => null,
+    findByCpf: async () => null,
     create: async (data) => {
       persisted = data;
       const { senha: _senha, ...publicUser } = data;

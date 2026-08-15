@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import prisma from '../lib/prisma.js';
 import { ForbiddenError, InternalServerError, UnauthorizedError } from '../errors/index.js';
+import { availableProfiles } from '../services/auth/authSession.js';
 
 export async function authenticate(req, _res, next) {
   try {
@@ -22,21 +23,32 @@ export async function authenticate(req, _res, next) {
       where: { id_usuario },
       select: {
         id_usuario: true,
+        ativo: true,
+        bloqueado: true,
         cliente: { select: { id_cliente: true } },
         diarista: { select: { id_diarista: true } },
       },
     });
 
-    if (!user) throw new UnauthorizedError('Sessão inválida');
+    if (!user || !user.ativo || user.bloqueado) throw new UnauthorizedError('Sessão inválida');
+
+    const profiles = availableProfiles(user);
+    const tokenActiveProfile = typeof payload.activeProfile === 'string'
+      ? payload.activeProfile.toUpperCase()
+      : null;
+    const activeProfile = profiles.length === 1
+      ? profiles[0]
+      : profiles.includes(tokenActiveProfile)
+        ? tokenActiveProfile
+        : null;
 
     req.auth = {
       id_usuario: user.id_usuario,
-      id_cliente: user.cliente[0]?.id_cliente ?? null,
-      id_diarista: user.diarista[0]?.id_diarista ?? null,
-      roles: [
-        ...(user.cliente.length ? ['cliente'] : []),
-        ...(user.diarista.length ? ['diarista'] : []),
-      ],
+      id_cliente: activeProfile === 'CLIENTE' ? user.cliente[0]?.id_cliente ?? null : null,
+      id_diarista: activeProfile === 'DIARISTA' ? user.diarista[0]?.id_diarista ?? null : null,
+      roles: profiles.map((profile) => profile.toLowerCase()),
+      profiles,
+      activeProfile,
     };
     next();
   } catch (error) {
@@ -47,7 +59,8 @@ export async function authenticate(req, _res, next) {
 
 export function authorizeRoles(...roles) {
   return (req, _res, next) => {
-    if (!roles.some((role) => req.auth?.roles.includes(role))) {
+    const activeRole = req.auth?.activeProfile?.toLowerCase();
+    if (!activeRole || !roles.includes(activeRole)) {
       return next(new ForbiddenError('Perfil sem permissão para esta operação'));
     }
     next();

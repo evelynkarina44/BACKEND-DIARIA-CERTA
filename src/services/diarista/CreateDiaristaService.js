@@ -6,6 +6,11 @@ export class CreateDiaristaService {
   async execute(data, auth) {
     if (data.id_usuario !== auth?.id_usuario) throw new ForbiddenError('O perfil deve pertencer ao usuário autenticado');
     if (await this.repository.findByIdUsuario(data.id_usuario)) throw new ConflictError('Usuário já possui perfil de diarista');
-    return this.repository.create({ ...data, avaliacao_media: null });
+    const { endereco, ...diarista } = data;
+    return this.repository.create({
+      ...diarista,
+      avaliacao_media: null,
+      endereco: { create: endereco },
+    }, { include: { endereco: true } });
   }
 }

@@ -220,6 +220,21 @@ paths['/api/auth/me'] = {
   },
 };
 
+paths['/api/auth/select-profile'] = {
+  post: {
+    tags: ['Autenticação'],
+    summary: 'Selecionar perfil ativo',
+    description: 'Seleciona um perfil pertencente ao usuário autenticado e emite um novo JWT limitado a esse contexto.',
+    operationId: 'selecionarPerfilAtivo',
+    security: bearerSecurity,
+    requestBody: requestBody('SelectProfileRequest'),
+    responses: {
+      '200': successResponse('Perfil ativo selecionado.', schemaRef('LoginResponse')),
+      ...standardErrors({ authenticated: true, forbidden: true }),
+    },
+  },
+};
+
 addCrud({
   base: '/api/usuario', tag: 'Usuários', singular: 'usuário', plural: 'usuários', resource: 'Usuario',
   createSchema: 'UsuarioCreate', updateSchema: 'UsuarioUpdate', paginated: true,
@@ -523,25 +538,11 @@ const usuarioCreate = objectSchema({
     ],
     default: '',
   },
+  cpf: { type: 'string', nullable: true, pattern: '^\\d{11}$', example: '52998224725' },
+  tipo: { type: 'string', enum: ['CLIENTE', 'DIARISTA'], default: 'CLIENTE' },
 }, ['nome', 'email', 'senha', 'telefone']);
 
-const clienteCreate = objectSchema({
-  id_usuario: positiveInteger,
-  data_nascimento: date,
-  qtd_comodos: { type: 'integer', minimum: 1, maximum: 100 },
-  tamanho_casa: { type: 'string', enum: ['pequena', 'media', 'grande'] },
-}, ['id_usuario', 'data_nascimento', 'qtd_comodos', 'tamanho_casa']);
-
-const diaristaCreate = objectSchema({
-  id_usuario: positiveInteger,
-  descricao: { type: 'string', minLength: 20, maxLength: 2000 },
-  frequencia_resposta: nullableString(50),
-  qtd_max_comodos: { type: 'integer', minimum: 1, maximum: 100 },
-}, ['id_usuario', 'descricao', 'qtd_max_comodos']);
-
-const enderecoCreate = objectSchema({
-  id_cliente: positiveInteger,
-  id_diarista: positiveInteger,
+const enderecoCadastro = objectSchema({
   bairro: { type: 'string', minLength: 2, maxLength: 100 },
   cep: { type: 'string', pattern: '^\\d{5}-?\\d{3}$', example: '01001-000' },
   logradouro: { type: 'string', minLength: 2, maxLength: 150 },
@@ -550,6 +551,28 @@ const enderecoCreate = objectSchema({
   cidade: { type: 'string', minLength: 2, maxLength: 100 },
   estado: { type: 'string', minLength: 2, maxLength: 2, example: 'SP' },
   referencia: nullableString(150),
+}, ['bairro', 'cep', 'logradouro', 'numero', 'cidade', 'estado']);
+
+const clienteCreate = objectSchema({
+  id_usuario: positiveInteger,
+  data_nascimento: date,
+  qtd_comodos: { type: 'integer', minimum: 1, maximum: 100 },
+  tamanho_casa: { type: 'string', enum: ['pequena', 'media', 'grande'] },
+  endereco: enderecoCadastro,
+}, ['id_usuario', 'data_nascimento', 'qtd_comodos', 'tamanho_casa', 'endereco']);
+
+const diaristaCreate = objectSchema({
+  id_usuario: positiveInteger,
+  descricao: { type: 'string', minLength: 20, maxLength: 2000 },
+  frequencia_resposta: nullableString(50),
+  qtd_max_comodos: { type: 'integer', minimum: 1, maximum: 100 },
+  endereco: enderecoCadastro,
+}, ['id_usuario', 'descricao', 'qtd_max_comodos', 'endereco']);
+
+const enderecoCreate = objectSchema({
+  id_cliente: positiveInteger,
+  id_diarista: positiveInteger,
+  ...enderecoCadastro.properties,
 }, ['bairro', 'cep', 'logradouro', 'numero', 'cidade', 'estado'], {
   description: 'Informe exatamente um proprietário: id_cliente ou id_diarista.',
   oneOf: [
@@ -642,20 +665,24 @@ components.schemas = {
     total: { type: 'integer', minimum: 0 }, pages: { type: 'integer', minimum: 0 },
   }, ['page', 'limit', 'total', 'pages']),
   LoginRequest: objectSchema({ email: { type: 'string', format: 'email', maxLength: 100 }, senha: { type: 'string', format: 'password', minLength: 1, maxLength: 100 } }, ['email', 'senha']),
+  SelectProfileRequest: objectSchema({ profile: { type: 'string', enum: ['CLIENTE', 'DIARISTA'] } }, ['profile']),
   LoginResponse: objectSchema({ token: { type: 'string', description: 'JWT Bearer.' }, user: schemaRef('Usuario') }, ['token', 'user']),
   UsuarioCreate: usuarioCreate,
   UsuarioUpdate: partialSchema(usuarioCreate),
   Usuario: objectSchema({
-    id_usuario: positiveInteger, nome: { type: 'string' }, email: { type: 'string', format: 'email' }, telefone: { type: 'string' },
+    id_usuario: positiveInteger, nome: { type: 'string' }, email: { type: 'string', format: 'email' }, telefone: { type: 'string' }, cpf: { type: 'string', nullable: true },
     foto_perfil: { type: 'string' }, data_cadastro: { type: 'string', format: 'date-time' },
     cliente: { type: 'array', items: objectSchema({ id_cliente: positiveInteger }) },
     diarista: { type: 'array', items: objectSchema({ id_diarista: positiveInteger }) },
+    profiles: { type: 'array', items: { type: 'string', enum: ['CLIENTE', 'DIARISTA'] } },
+    activeProfile: { type: 'string', enum: ['CLIENTE', 'DIARISTA'], nullable: true },
+    requiresProfileSelection: { type: 'boolean' },
   }, ['id_usuario', 'nome', 'email', 'telefone']),
   ClienteCreate: clienteCreate,
-  ClienteUpdate: partialSchema(clienteCreate, ['id_usuario']),
+  ClienteUpdate: partialSchema(clienteCreate, ['id_usuario', 'endereco']),
   Cliente: objectSchema({ id_cliente: positiveInteger, ...clienteCreate.properties }, ['id_cliente', 'id_usuario', 'data_nascimento', 'qtd_comodos', 'tamanho_casa'], { additionalProperties: true }),
   DiaristaCreate: diaristaCreate,
-  DiaristaUpdate: partialSchema(diaristaCreate, ['id_usuario']),
+  DiaristaUpdate: partialSchema(diaristaCreate, ['id_usuario', 'endereco']),
   Diarista: objectSchema({
     id_diarista: positiveInteger, ...diaristaCreate.properties, avaliacao_media: { type: 'number', nullable: true }, valor_medio_diaria: { type: 'number', nullable: true },
   }, ['id_diarista', 'id_usuario', 'descricao', 'qtd_max_comodos'], { additionalProperties: true }),

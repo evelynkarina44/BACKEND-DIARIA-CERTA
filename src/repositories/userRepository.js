@@ -9,4 +9,8 @@ export class UserRepository extends BaseRepository {
   findByEmail(email) {
     return this.model.findUnique({ where: { email } });
   }
+
+  findByCpf(cpf) {
+    return this.model.findFirst({ where: { cpf } });
+  }
 }

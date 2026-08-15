@@ -13,6 +13,10 @@ export class UpdateUsuarioService {
       const existing = await this.repository.findByEmail(changes.email);
       if (existing && existing.id_usuario !== Number(id_usuario)) throw new ConflictError('E-mail já cadastrado');
     }
+    if (changes.cpf) {
+      const existing = await this.repository.findByCpf(changes.cpf);
+      if (existing && existing.id_usuario !== Number(id_usuario)) throw new ConflictError('CPF já cadastrado');
+    }
     if (changes.senha) changes.senha = await bcrypt.hash(changes.senha, 12);
     return this.repository.update(id_usuario, changes, { select: usuarioPublicSelect });
   }

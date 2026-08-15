@@ -1,10 +1,8 @@
 import { ValidationError } from "../errors/index.js";
 
 export function validate(schema, source = "body") {
-    return (req, res, next) => {
-        const result = schema.safeParse(
-            req[source]
-        );
+    return (req, _res, next) => {
+        const result = schema.safeParse(req[source]);
 
         if(!result.success) {
             return next(
@@ -15,7 +13,16 @@ export function validate(schema, source = "body") {
             );
         }
 
-        req[source] = result.data;
+        if (source === "query") {
+            Object.defineProperty(req, "query", {
+                value: result.data,
+                writable: true,
+                configurable: true,
+                enumerable: true,
+            });
+        } else {
+            req[source] = result.data;
+        }
 
         next();
     };

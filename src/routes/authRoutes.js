@@ -3,7 +3,7 @@ import { rateLimit } from 'express-rate-limit';
 import { AuthController } from '../controllers/authController.js';
 import { authenticate } from '../middlewares/auth.js';
 import { validate } from '../middlewares/validate.js';
-import { loginSchema } from '../schemas/apiSchemas.js';
+import { loginSchema, selectProfileSchema } from '../schemas/apiSchemas.js';
 
 const router = Router();
 const controller = new AuthController();
@@ -11,5 +11,6 @@ const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, standardHe
 
 router.post('/login', loginLimiter, validate(loginSchema), controller.login);
 router.get('/me', authenticate, controller.me);
+router.post('/select-profile', authenticate, validate(selectProfileSchema), controller.selectProfile);
 
 export default router;

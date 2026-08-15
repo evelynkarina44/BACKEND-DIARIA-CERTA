@@ -13,6 +13,9 @@ export class CreateUsuarioService {
     if (await this.repository.findByEmail(email)) {
       throw new ConflictError('E-mail já cadastrado');
     }
+    if (data.cpf && await this.repository.findByCpf(data.cpf)) {
+      throw new ConflictError('CPF já cadastrado');
+    }
     return this.repository.create({
       ...data,
       email,

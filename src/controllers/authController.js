@@ -8,6 +8,10 @@ export class AuthController {
   }
 
   async me(req, res) {
-    return res.status(200).json(await authService.me(req.auth.id_usuario));
+    return res.status(200).json(await authService.me(req.auth.id_usuario, req.auth.activeProfile));
+  }
+
+  async selectProfile(req, res) {
+    return res.status(200).json(await authService.selectProfile(req.auth.id_usuario, req.body.profile));
   }
 }

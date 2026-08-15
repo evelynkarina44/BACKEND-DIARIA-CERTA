@@ -18,37 +18,36 @@ export const loginSchema = z.object({
   senha: z.string().min(1).max(100),
 });
 
+export const selectProfileSchema = z.object({
+  profile: z.enum(['CLIENTE', 'DIARISTA']),
+});
+
+function isValidCpf(value) {
+  if (!value || /^(\d)\1{10}$/.test(value)) return false;
+  const digit = (length) => {
+    let sum = 0;
+    for (let index = 0; index < length; index += 1) {
+      sum += Number(value[index]) * (length + 1 - index);
+    }
+    const remainder = (sum * 10) % 11;
+    return remainder === 10 ? 0 : remainder;
+  };
+  return digit(9) === Number(value[9]) && digit(10) === Number(value[10]);
+}
+
 const usuarioFields = {
   nome: z.string().trim().min(3).max(100),
   email: z.string().trim().email().max(100).transform((value) => value.toLowerCase()),
   senha: z.string().min(8).max(100),
   telefone: z.string().trim().min(10).max(20),
   foto_perfil: z.union([z.string().url().max(255), z.literal('')]).default(''),
+  cpf: z.string().trim().regex(/^\d{11}$/).refine(isValidCpf, 'CPF inválido').nullable().optional(),
+  tipo: z.enum(['CLIENTE', 'DIARISTA']).default('CLIENTE'),
 };
 export const createUsuarioSchema = z.object(usuarioFields);
-export const updateUsuarioSchema = z.object(usuarioFields).partial().refine((data) => Object.keys(data).length > 0, 'Informe ao menos um campo');
+export const updateUsuarioSchema = z.object(usuarioFields).omit({ tipo: true }).partial().refine((data) => Object.keys(data).length > 0, 'Informe ao menos um campo');
 
-const clienteFields = {
-  id_usuario: positiveId,
-  data_nascimento: dateOnly,
-  qtd_comodos: z.coerce.number().int().positive().max(100),
-  tamanho_casa: z.enum(['pequena', 'media', 'grande']),
-};
-export const createClienteSchema = z.object(clienteFields);
-export const updateClienteSchema = z.object(clienteFields).omit({ id_usuario: true }).partial().refine((data) => Object.keys(data).length > 0, 'Informe ao menos um campo');
-
-const diaristaFields = {
-  id_usuario: positiveId,
-  descricao: z.string().trim().min(20).max(2000),
-  frequencia_resposta: z.string().trim().max(50).nullable().optional(),
-  qtd_max_comodos: z.coerce.number().int().positive().max(100),
-};
-export const createDiaristaSchema = z.object(diaristaFields);
-export const updateDiaristaSchema = z.object(diaristaFields).omit({ id_usuario: true }).partial().refine((data) => Object.keys(data).length > 0, 'Informe ao menos um campo');
-
-const enderecoFields = {
-  id_cliente: positiveId.optional(),
-  id_diarista: positiveId.optional(),
+const enderecoCadastroFields = {
   bairro: z.string().trim().min(2).max(100),
   cep: z.string().trim().regex(/^\d{5}-?\d{3}$/).transform((value) => value.replace(/^(\d{5})(\d{3})$/, '$1-$2')),
   logradouro: z.string().trim().min(2).max(150),
@@ -57,6 +56,31 @@ const enderecoFields = {
   cidade: z.string().trim().min(2).max(100),
   estado: z.string().trim().length(2).transform((value) => value.toUpperCase()),
   referencia: nullableText(150),
+};
+const enderecoCadastroSchema = z.object(enderecoCadastroFields);
+
+const clienteFields = {
+  id_usuario: positiveId,
+  data_nascimento: dateOnly,
+  qtd_comodos: z.coerce.number().int().positive().max(100),
+  tamanho_casa: z.enum(['pequena', 'media', 'grande']),
+};
+export const createClienteSchema = z.object({ ...clienteFields, endereco: enderecoCadastroSchema });
+export const updateClienteSchema = z.object(clienteFields).omit({ id_usuario: true }).partial().refine((data) => Object.keys(data).length > 0, 'Informe ao menos um campo');
+
+const diaristaFields = {
+  id_usuario: positiveId,
+  descricao: z.string().trim().min(20).max(2000),
+  frequencia_resposta: z.string().trim().max(50).nullable().optional(),
+  qtd_max_comodos: z.coerce.number().int().positive().max(100),
+};
+export const createDiaristaSchema = z.object({ ...diaristaFields, endereco: enderecoCadastroSchema });
+export const updateDiaristaSchema = z.object(diaristaFields).omit({ id_usuario: true }).partial().refine((data) => Object.keys(data).length > 0, 'Informe ao menos um campo');
+
+const enderecoFields = {
+  id_cliente: positiveId.optional(),
+  id_diarista: positiveId.optional(),
+  ...enderecoCadastroFields,
 };
 const exactlyOneOwner = (data) => Boolean(data.id_cliente) !== Boolean(data.id_diarista);
 export const createEnderecoSchema = z.object(enderecoFields).refine(exactlyOneOwner, {

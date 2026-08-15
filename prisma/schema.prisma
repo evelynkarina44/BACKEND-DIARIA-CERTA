@@ -243,17 +243,27 @@ model servico {
 }
 
 model usuario {
-  id_usuario                                        Int        @id @default(autoincrement())
-  nome                                              String     @db.VarChar(100)
-  email                                             String     @unique(map: "email") @db.VarChar(100)
-  senha                                             String     @db.VarChar(255)
-  telefone                                          String     @db.VarChar(20)
-  foto_perfil                                       String     @db.VarChar(255)
-  data_cadastro                                     DateTime   @default(now()) @db.Timestamp(0)
+  id_usuario                                        Int          @id @default(autoincrement())
+  nome                                              String       @db.VarChar(100)
+  email                                             String       @unique(map: "email") @db.VarChar(100)
+  senha                                             String       @db.VarChar(255)
+  telefone                                          String       @db.VarChar(20)
+  foto_perfil                                       String?      @db.VarChar(255)
+  data_cadastro                                     DateTime     @default(now()) @db.Timestamp(0)
+  ativo                                             Boolean      @default(true)
+  atualizado_em                                     DateTime     @default(now()) @updatedAt @db.Timestamp(0)
+  bloqueado                                         Boolean      @default(false)
+  cpf                                               String?      @db.Char(11)
+  tipo                                              usuario_tipo @default(CLIENTE)
   cliente                                           cliente[]
-  denuncia_denuncia_id_usuario_denunciadoTousuario  denuncia[] @relation("denuncia_id_usuario_denunciadoTousuario")
-  denuncia_denuncia_id_usuario_denuncianteTousuario denuncia[] @relation("denuncia_id_usuario_denuncianteTousuario")
+  denuncia_denuncia_id_usuario_denunciadoTousuario  denuncia[]   @relation("denuncia_id_usuario_denunciadoTousuario")
+  denuncia_denuncia_id_usuario_denuncianteTousuario denuncia[]   @relation("denuncia_id_usuario_denuncianteTousuario")
   diarista                                          diarista[]
+}
+
+enum usuario_tipo {
+  CLIENTE
+  DIARISTA
 }
 
 enum ocorrencia_agendamento_motivo {

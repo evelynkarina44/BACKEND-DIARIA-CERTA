@@ -3,6 +3,7 @@ export const usuarioPublicSelect = {
   nome: true,
   email: true,
   telefone: true,
+  cpf: true,
   foto_perfil: true,
   data_cadastro: true,
   cliente: { select: { id_cliente: true } },
