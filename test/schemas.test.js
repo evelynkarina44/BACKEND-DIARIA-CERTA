@@ -82,6 +82,38 @@ test('cadastros de cliente e diarista exigem endereço', () => {
   assert.equal(createDiaristaSchema.safeParse({ ...diarista, endereco: enderecoCadastro }).success, true);
 });
 
+test('cadastro da diarista aceita serviços individuais e combo relacionados', () => {
+  const result = createDiaristaSchema.safeParse({
+    id_usuario: 2,
+    descricao: 'Descrição profissional com tamanho válido.',
+    qtd_max_comodos: 8,
+    endereco: enderecoCadastro,
+    servicos: [
+      { id_servico: 1, preco: 100, faz_parte_combo_base: true },
+      { nome_servico: 'Limpeza de janelas', preco: 45, faz_parte_combo_base: false },
+    ],
+    combo_base: {
+      nome_combo: 'Limpeza completa',
+      valor_base: 130,
+      qtd_comodos_casa: 8,
+      atende_casa_pequena: true,
+    },
+  });
+  assert.equal(result.success, true);
+});
+
+test('combo da diarista exige ao menos um serviço incluído', () => {
+  const result = createDiaristaSchema.safeParse({
+    id_usuario: 2,
+    descricao: 'Descrição profissional com tamanho válido.',
+    qtd_max_comodos: 8,
+    endereco: enderecoCadastro,
+    servicos: [{ id_servico: 1, preco: 100, faz_parte_combo_base: false }],
+    combo_base: { nome_combo: 'Combo básico', valor_base: 100, qtd_comodos_casa: 8 },
+  });
+  assert.equal(result.success, false);
+});
+
 test('agendamento rejeita intervalo invertido', () => {
   const result = createAgendamentoSchema.safeParse({
     id_diarista: 1,

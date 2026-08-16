@@ -74,7 +74,33 @@ const diaristaFields = {
   frequencia_resposta: z.string().trim().max(50).nullable().optional(),
   qtd_max_comodos: z.coerce.number().int().positive().max(100),
 };
-export const createDiaristaSchema = z.object({ ...diaristaFields, endereco: enderecoCadastroSchema });
+const servicoCadastroDiaristaSchema = z.object({
+  id_servico: positiveId.optional(),
+  nome_servico: z.string().trim().min(2).max(100).optional(),
+  descricao: nullableText(2000),
+  preco: money,
+  faz_parte_combo_base: z.boolean().default(false),
+}).refine((data) => Boolean(data.id_servico) !== Boolean(data.nome_servico), {
+  message: 'Informe id_servico ou nome_servico, exclusivamente',
+});
+const comboBaseCadastroSchema = z.object({
+  nome_combo: z.string().trim().min(2).max(100),
+  valor_base: money,
+  descricao: nullableText(2000),
+  qtd_comodos_casa: z.coerce.number().int().positive().max(100),
+  atende_casa_pequena: z.boolean().default(false),
+  atende_casa_media: z.boolean().default(false),
+  atende_casa_grande: z.boolean().default(false),
+});
+export const createDiaristaSchema = z.object({
+  ...diaristaFields,
+  endereco: enderecoCadastroSchema,
+  servicos: z.array(servicoCadastroDiaristaSchema).min(1).max(50).optional(),
+  combo_base: comboBaseCadastroSchema.optional(),
+}).refine(
+  (data) => !data.combo_base || data.servicos?.some((servico) => servico.faz_parte_combo_base),
+  { message: 'Selecione ao menos um serviço para o combo', path: ['combo_base'] },
+);
 export const updateDiaristaSchema = z.object(diaristaFields).omit({ id_usuario: true }).partial().refine((data) => Object.keys(data).length > 0, 'Informe ao menos um campo');
 
 const enderecoFields = {

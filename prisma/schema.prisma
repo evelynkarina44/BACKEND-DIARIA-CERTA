@@ -112,6 +112,9 @@ model combo_base {
   atende_casa_pequena Boolean?
   atende_casa_media   Boolean?
   atende_casa_grande  Boolean?
+  ativo                Boolean         @default(true)
+  atualizado_em        DateTime        @updatedAt @db.Timestamp(0)
+  criado_em            DateTime        @default(now()) @db.Timestamp(0)
   diarista            diarista        @relation(fields: [id_diarista], references: [id_diarista], onDelete: NoAction, onUpdate: NoAction, map: "fk_combo_diarista")
   combo_servico       combo_servico[]
 
@@ -169,6 +172,9 @@ model diarista_servico {
   id_servico           Int
   preco                Decimal               @db.Decimal(8, 2)
   faz_parte_combo_base Boolean?
+  adicional            Boolean               @default(false)
+  ativo                 Boolean               @default(true)
+  duracao_estimada_min  Int?
   agendamento_servico  agendamento_servico[]
   diarista             diarista              @relation(fields: [id_diarista], references: [id_diarista], onDelete: NoAction, onUpdate: NoAction, map: "fk_ds_diarista")
   servico              servico               @relation(fields: [id_servico], references: [id_servico], onDelete: NoAction, onUpdate: NoAction, map: "fk_ds_servico")

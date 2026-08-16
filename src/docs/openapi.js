@@ -561,12 +561,38 @@ const clienteCreate = objectSchema({
   endereco: enderecoCadastro,
 }, ['id_usuario', 'data_nascimento', 'qtd_comodos', 'tamanho_casa', 'endereco']);
 
+const servicoCadastroDiarista = objectSchema({
+  id_servico: positiveInteger,
+  nome_servico: { type: 'string', minLength: 2, maxLength: 100 },
+  descricao: nullableString(2000),
+  preco: money,
+  faz_parte_combo_base: { type: 'boolean', default: false },
+}, ['preco'], {
+  description: 'Informe exclusivamente id_servico para um item do catálogo ou nome_servico para criar um novo serviço.',
+  oneOf: [
+    { required: ['id_servico'], not: { required: ['nome_servico'] } },
+    { required: ['nome_servico'], not: { required: ['id_servico'] } },
+  ],
+});
+
+const comboBaseCadastro = objectSchema({
+  nome_combo: { type: 'string', minLength: 2, maxLength: 100 },
+  valor_base: money,
+  descricao: nullableString(2000),
+  qtd_comodos_casa: { type: 'integer', minimum: 1, maximum: 100 },
+  atende_casa_pequena: { type: 'boolean', default: false },
+  atende_casa_media: { type: 'boolean', default: false },
+  atende_casa_grande: { type: 'boolean', default: false },
+}, ['nome_combo', 'valor_base', 'qtd_comodos_casa']);
+
 const diaristaCreate = objectSchema({
   id_usuario: positiveInteger,
   descricao: { type: 'string', minLength: 20, maxLength: 2000 },
   frequencia_resposta: nullableString(50),
   qtd_max_comodos: { type: 'integer', minimum: 1, maximum: 100 },
   endereco: enderecoCadastro,
+  servicos: { type: 'array', minItems: 1, maxItems: 50, items: servicoCadastroDiarista },
+  combo_base: comboBaseCadastro,
 }, ['id_usuario', 'descricao', 'qtd_max_comodos', 'endereco']);
 
 const enderecoCreate = objectSchema({
@@ -680,9 +706,22 @@ components.schemas = {
   }, ['id_usuario', 'nome', 'email', 'telefone']),
   ClienteCreate: clienteCreate,
   ClienteUpdate: partialSchema(clienteCreate, ['id_usuario', 'endereco']),
-  Cliente: objectSchema({ id_cliente: positiveInteger, ...clienteCreate.properties }, ['id_cliente', 'id_usuario', 'data_nascimento', 'qtd_comodos', 'tamanho_casa'], { additionalProperties: true }),
+  Cliente: objectSchema({
+    id_cliente: positiveInteger,
+    id_usuario: positiveInteger,
+    data_nascimento: date,
+    qtd_comodos: { type: 'integer', minimum: 1, maximum: 100 },
+    tamanho_casa: { type: 'string', enum: ['pequena', 'media', 'grande'] },
+    usuario: { type: 'object', additionalProperties: true },
+    endereco: { type: 'array', items: schemaRef('Endereco') },
+    _count: objectSchema({
+      agendamento: { type: 'integer', minimum: 0 },
+      favorito: { type: 'integer', minimum: 0 },
+      avaliacao: { type: 'integer', minimum: 0 },
+    }),
+  }, ['id_cliente', 'id_usuario', 'data_nascimento', 'qtd_comodos', 'tamanho_casa'], { additionalProperties: true }),
   DiaristaCreate: diaristaCreate,
-  DiaristaUpdate: partialSchema(diaristaCreate, ['id_usuario', 'endereco']),
+  DiaristaUpdate: partialSchema(diaristaCreate, ['id_usuario', 'endereco', 'servicos', 'combo_base']),
   Diarista: objectSchema({
     id_diarista: positiveInteger, ...diaristaCreate.properties, avaliacao_media: { type: 'number', nullable: true }, valor_medio_diaria: { type: 'number', nullable: true },
   }, ['id_diarista', 'id_usuario', 'descricao', 'qtd_max_comodos'], { additionalProperties: true }),

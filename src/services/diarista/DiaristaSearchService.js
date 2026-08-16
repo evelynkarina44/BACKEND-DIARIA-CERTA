@@ -7,10 +7,12 @@ function publicProfileInclude() {
   usuario: { select: { nome: true, foto_perfil: true } },
   endereco: { select: { bairro: true, cidade: true, estado: true } },
   diarista_servico: {
+    where: { ativo: true },
     include: { servico: true },
     orderBy: { preco: 'asc' },
   },
   combo_base: {
+    where: { ativo: true },
     include: { combo_servico: { include: { servico: true } } },
   },
   disponibilidade_diarista: {
@@ -18,14 +20,13 @@ function publicProfileInclude() {
     orderBy: [{ dia_semana: 'asc' }, { horario_inicio: 'asc' }],
   },
   avaliacao: {
-    where: { autor_tipo: 'Cliente', comentario_publico: true },
+    where: { comentario_publico: true },
     orderBy: { data_avaliacao: 'desc' },
     take: 20,
     select: {
       id_avaliacao: true,
       nota: true,
       comentario: true,
-      anonima: true,
       data_avaliacao: true,
     },
   },
@@ -42,7 +43,7 @@ function present(profile, serviceCatalog = []) {
     diarista_servico: profile.diarista_servico.map((item) => ({ ...item, preco: Number(item.preco) })),
     servicos_nao_realizados: serviceCatalog.filter((item) => !offeredServiceIds.has(item.id_servico)),
     combo_base: profile.combo_base.map((combo) => ({ ...combo, valor_base: Number(combo.valor_base) })),
-    avaliacao: profile.avaliacao.map((item) => ({ ...item, nota: Number(item.nota), autor: item.anonima ? 'Anônimo' : 'Cliente' })),
+    avaliacao: profile.avaliacao.map((item) => ({ ...item, nota: Number(item.nota), autor: 'Cliente' })),
   };
 }
 
