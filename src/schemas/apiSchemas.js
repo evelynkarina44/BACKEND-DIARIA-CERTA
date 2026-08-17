@@ -1,7 +1,14 @@
 import { z } from 'zod';
 
 const positiveId = z.coerce.number().int().positive();
-const money = z.coerce.number().positive().max(999999.99);
+const money = z.coerce.number().positive().max(999999.99).refine(
+  (value) => Math.abs(value * 100 - Math.round(value * 100)) < 1e-8,
+  'O valor deve possuir no máximo 2 casas decimais',
+);
+const serviceName = z.string().trim().min(2).max(100).regex(
+  /^[\p{L}\p{N}\s.,:;&()'´’/\-]+$/u,
+  'Use apenas letras, números, espaços e pontuação comum',
+);
 const nullableText = (max) => z.string().trim().max(max).nullable().optional();
 const dateOnly = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).transform((value) => new Date(`${value}T00:00:00.000Z`));
 const timeOnly = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/).transform((value) => new Date(`1970-01-01T${value.length === 5 ? `${value}:00` : value}.000Z`));
@@ -76,7 +83,7 @@ const diaristaFields = {
 };
 const servicoCadastroDiaristaSchema = z.object({
   id_servico: positiveId.optional(),
-  nome_servico: z.string().trim().min(2).max(100).optional(),
+  nome_servico: serviceName.optional(),
   descricao: nullableText(2000),
   preco: money,
   faz_parte_combo_base: z.boolean().default(false),
@@ -115,7 +122,7 @@ export const createEnderecoSchema = z.object(enderecoFields).refine(exactlyOneOw
 export const updateEnderecoSchema = z.object(enderecoFields).partial().refine((data) => Object.keys(data).length > 0, 'Informe ao menos um campo');
 
 export const createServicoSchema = z.object({
-  nome_servico: z.string().trim().min(2).max(100),
+  nome_servico: serviceName,
   descricao: nullableText(2000),
 });
 export const updateServicoSchema = createServicoSchema.partial().refine((data) => Object.keys(data).length > 0, 'Informe ao menos um campo');
