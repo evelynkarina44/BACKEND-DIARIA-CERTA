@@ -5,6 +5,7 @@ import { combineDateAndTime, currentLocalDate } from '../../utils/dateTime.js';
 const agendamentoInclude = {
   cliente: { include: { usuario: { select: { nome: true, foto_perfil: true, telefone: true } } } },
   diarista: { include: { usuario: { select: { nome: true, foto_perfil: true, telefone: true } } } },
+  combo_base: { select: { id_combo_base: true, nome_combo: true, valor_base: true } },
   endereco: true,
   agendamento_servico: { include: { diarista_servico: { include: { servico: true } } } },
   checkin_checkout: true,
@@ -19,6 +20,7 @@ function present(appointment) {
   return {
     ...appointment,
     valor_estimado: appointment.valor_estimado === null ? null : Number(appointment.valor_estimado),
+    combo_base: appointment.combo_base ? { ...appointment.combo_base, valor_base: Number(appointment.combo_base.valor_base) } : null,
     agendamento_servico: appointment.agendamento_servico?.map((item) => ({ ...item, preco: Number(item.preco) })) ?? [],
   };
 }
@@ -34,22 +36,33 @@ export class AgendamentoWorkflowService {
   async validateAndPrice(data, auth) {
     if (!auth?.id_cliente) throw new ForbiddenError('É necessário um perfil de cliente');
 
-    const [diarista, endereco, services, availability] = await Promise.all([
+    const [diarista, endereco, services, availabilitySlots] = await Promise.all([
       prisma.diarista.findUnique({
         where: { id_diarista: data.id_diarista },
-        include: { combo_base: { include: { combo_servico: true } } },
+        include: {
+          combo_base: {
+            where: { ativo: true },
+            select: {
+              id_combo_base: true,
+              valor_base: true,
+              qtd_comodos_casa: true,
+              atende_casa_pequena: true,
+              atende_casa_media: true,
+              atende_casa_grande: true,
+              combo_servico: { select: { id_servico: true } },
+            },
+          },
+        },
       }),
       prisma.endereco.findUnique({ where: { id_endereco: data.id_endereco } }),
       prisma.diarista_servico.findMany({
         where: { id_diarista_servico: { in: data.servicos.map((item) => item.id_diarista_servico) } },
       }),
-      prisma.disponibilidade_diarista.findFirst({
+      prisma.disponibilidade_diarista.findMany({
         where: {
           id_diarista: data.id_diarista,
           dia_semana: data.data_agendamento,
           disponivel: true,
-          horario_inicio: { lte: data.horario_inicio },
-          horario_fim: { gte: data.horario_fim },
         },
       }),
     ]);
@@ -61,26 +74,37 @@ export class AgendamentoWorkflowService {
       throw new BadRequestError('Um ou mais serviços não pertencem à diarista selecionada');
     }
     if (data.qtd_comodos > diarista.qtd_max_comodos) throw new BadRequestError('Quantidade de cômodos acima do limite da diarista');
-    if (!availability) throw new ConflictError('Diarista indisponível no período informado');
+    const requestedStart = data.horario_inicio.toISOString().slice(11, 19);
+    const availability = availabilitySlots.find(
+      (slot) => slot.horario_inicio.toISOString().slice(11, 19) === requestedStart,
+    );
+    if (!availability) throw new ConflictError('Horário de início não está disponível para a data selecionada');
 
     const startsAt = combineDateAndTime(data.data_agendamento, data.horario_inicio);
     if (startsAt <= new Date()) throw new BadRequestError('O agendamento deve ser futuro');
 
     const sizeField = `atende_casa_${data.tamanho_residencia}`;
-    const compatibleCombos = diarista.combo_base.filter((combo) => combo[sizeField] && data.qtd_comodos <= combo.qtd_comodos_casa);
-    if (diarista.combo_base.length && !compatibleCombos.length) throw new BadRequestError('A diarista não atende esse tamanho de residência e quantidade de cômodos');
-
-    let estimated = services.reduce((sum, item) => sum + Number(item.preco), 0);
-    const serviceIds = new Set(services.map((item) => item.id_servico));
-    const applicableCombo = compatibleCombos.find((combo) => combo.combo_servico.length > 0 && combo.combo_servico.every((item) => serviceIds.has(item.id_servico)));
-    if (applicableCombo) {
-      const comboServiceIds = new Set(applicableCombo.combo_servico.map((item) => item.id_servico));
-      estimated = Number(applicableCombo.valor_base) + services.filter((item) => !comboServiceIds.has(item.id_servico)).reduce((sum, item) => sum + Number(item.preco), 0);
+    const selectedCombo = data.id_combo_base
+      ? diarista.combo_base.find((combo) => combo.id_combo_base === data.id_combo_base)
+      : null;
+    if (data.id_combo_base && !selectedCombo) throw new BadRequestError('Combo não pertence à diarista ou está inativo');
+    if (selectedCombo && (!selectedCombo[sizeField] || data.qtd_comodos > selectedCombo.qtd_comodos_casa)) {
+      throw new BadRequestError('Combo incompatível com o tamanho da residência ou quantidade de cômodos');
     }
+
+    const serviceIds = new Set(services.map((item) => item.id_servico));
+    const comboServiceIds = new Set(selectedCombo?.combo_servico.map((item) => item.id_servico) ?? []);
+    if (selectedCombo && [...comboServiceIds].some((id) => !serviceIds.has(id))) {
+      throw new BadRequestError('Inclua todos os serviços pertencentes ao combo selecionado');
+    }
+    const extras = services.filter((item) => !comboServiceIds.has(item.id_servico));
+    const estimated = selectedCombo
+      ? Number(selectedCombo.valor_base) + extras.reduce((sum, item) => sum + Number(item.preco), 0)
+      : services.reduce((sum, item) => sum + Number(item.preco), 0);
 
     return {
       valor_estimado: Number(estimated.toFixed(2)),
-      combo_aplicado: applicableCombo?.id_combo_base ?? null,
+      combo_aplicado: selectedCombo?.id_combo_base ?? null,
       services,
     };
   }
@@ -98,6 +122,7 @@ export class AgendamentoWorkflowService {
         id_cliente: auth.id_cliente,
         id_diarista: data.id_diarista,
         id_endereco: data.id_endereco,
+        id_combo_base: pricing.combo_aplicado,
         data_agendamento: data.data_agendamento,
         horario_inicio: data.horario_inicio,
         horario_fim: data.horario_fim,

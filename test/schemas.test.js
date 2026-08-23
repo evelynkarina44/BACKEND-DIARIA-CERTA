@@ -127,3 +127,19 @@ test('agendamento rejeita intervalo invertido', () => {
   });
   assert.equal(result.success, false);
 });
+
+test('agendamento aceita a escolha opcional de um combo base', () => {
+  const result = createAgendamentoSchema.safeParse({
+    id_diarista: 1,
+    id_endereco: 1,
+    id_combo_base: 2,
+    data_agendamento: '2030-01-01',
+    horario_inicio: '13:00',
+    horario_fim: '14:00',
+    qtd_comodos: 3,
+    tamanho_residencia: 'pequena',
+    servicos: [{ id_diarista_servico: 1 }],
+  });
+  assert.equal(result.success, true);
+  assert.equal(result.data.id_combo_base, 2);
+});

@@ -12,6 +12,7 @@ model agendamento {
   id_cliente             Int
   id_diarista            Int
   id_endereco            Int?
+  id_combo_base          Int?
   data_agendamento       DateTime                 @db.Date
   horario_inicio         DateTime?                @db.Time(0)
   horario_fim            DateTime?                @db.Time(0)
@@ -27,6 +28,7 @@ model agendamento {
   cliente                cliente                  @relation(fields: [id_cliente], references: [id_cliente], onDelete: NoAction, onUpdate: NoAction, map: "fk_agendamento_cliente")
   diarista               diarista                 @relation(fields: [id_diarista], references: [id_diarista], onDelete: NoAction, onUpdate: NoAction, map: "fk_agendamento_diarista")
   endereco               endereco?                @relation(fields: [id_endereco], references: [id_endereco], onDelete: NoAction, onUpdate: NoAction, map: "fk_agendamento_endereco")
+  combo_base             combo_base?              @relation(fields: [id_combo_base], references: [id_combo_base], onDelete: NoAction, onUpdate: NoAction, map: "fk_agendamento_combo_base")
   agendamento_servico    agendamento_servico[]
   avaliacao              avaliacao[]
   checkin_checkout       checkin_checkout[]
@@ -35,6 +37,7 @@ model agendamento {
   @@index([id_cliente], map: "fk_agendamento_cliente")
   @@index([id_diarista], map: "fk_agendamento_diarista")
   @@index([id_endereco], map: "fk_agendamento_endereco")
+  @@index([id_combo_base], map: "fk_agendamento_combo_base")
   @@index([status, expira_em], map: "idx_agendamento_status_expiracao")
   @@index([id_diarista, data_agendamento], map: "idx_agendamento_diarista_data")
 }
@@ -117,6 +120,7 @@ model combo_base {
   criado_em            DateTime        @default(now()) @db.Timestamp(0)
   diarista            diarista        @relation(fields: [id_diarista], references: [id_diarista], onDelete: NoAction, onUpdate: NoAction, map: "fk_combo_diarista")
   combo_servico       combo_servico[]
+  agendamento         agendamento[]
 
   @@index([id_diarista], map: "fk_combo_diarista")
 }

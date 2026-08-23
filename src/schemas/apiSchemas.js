@@ -187,6 +187,7 @@ export const updateOcorrenciaSchema = createOcorrenciaSchema.omit({ id_agendamen
 export const createAgendamentoSchema = z.object({
   id_diarista: positiveId,
   id_endereco: positiveId,
+  id_combo_base: positiveId.optional(),
   data_agendamento: dateOnly,
   horario_inicio: timeOnly,
   horario_fim: timeOnly,
@@ -228,7 +229,13 @@ export const diaristaSearchSchema = paginationSchema.extend({
   preco_min: z.coerce.number().nonnegative().optional(),
   preco_max: z.coerce.number().nonnegative().optional(),
   id_servico: positiveId.optional(),
-  ordenar: z.enum(['avaliacao', 'preco_asc', 'preco_desc', 'nome']).default('avaliacao'),
+  cep_origem: z.string().trim().regex(/^\d{5}-?\d{3}$/).optional(),
+  distancia_max: z.coerce.number().positive().max(5000).optional(),
+  ordenar: z.enum(['avaliacao', 'preco_asc', 'preco_desc', 'nome', 'distancia']).default('avaliacao'),
+}).superRefine((data, context) => {
+  if ((data.distancia_max !== undefined || data.ordenar === 'distancia') && !data.cep_origem) {
+    context.addIssue({ code: 'custom', path: ['cep_origem'], message: 'Informe o CEP de origem para calcular a distância' });
+  }
 });
 
 export const agendamentoQuerySchema = paginationSchema.extend({

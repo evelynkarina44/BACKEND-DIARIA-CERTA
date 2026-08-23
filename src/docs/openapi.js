@@ -265,6 +265,21 @@ addCrud({
   },
 });
 
+paths['/api/diarista'].get.parameters = [
+  ...paginationParameters,
+  { name: 'nome', in: 'query', schema: { type: 'string', maxLength: 100 } },
+  { name: 'bairro', in: 'query', schema: { type: 'string', maxLength: 100 } },
+  { name: 'cidade', in: 'query', schema: { type: 'string', maxLength: 100 } },
+  { name: 'estado', in: 'query', schema: { type: 'string', minLength: 2, maxLength: 2 } },
+  { name: 'avaliacao_min', in: 'query', schema: { type: 'number', minimum: 0, maximum: 5 } },
+  { name: 'preco_min', in: 'query', schema: { type: 'number', minimum: 0 } },
+  { name: 'preco_max', in: 'query', schema: { type: 'number', minimum: 0 } },
+  { name: 'id_servico', in: 'query', schema: { type: 'integer', minimum: 1 } },
+  { name: 'cep_origem', in: 'query', description: 'CEP do cliente usado como origem do cálculo de distância.', schema: { type: 'string', pattern: '^\\d{5}-?\\d{3}$' } },
+  { name: 'distancia_max', in: 'query', description: 'Distância máxima em quilômetros. Exige cep_origem.', schema: { type: 'number', minimum: 0, exclusiveMinimum: true, maximum: 5000 } },
+  { name: 'ordenar', in: 'query', schema: { type: 'string', enum: ['avaliacao', 'preco_asc', 'preco_desc', 'nome', 'distancia'], default: 'avaliacao' } },
+];
+
 paths['/api/diarista/{id}/estatisticas'] = {
   get: {
     tags: ['Diaristas'],
@@ -644,6 +659,7 @@ const disponibilidadeCreate = objectSchema({
 const agendamentoCreate = objectSchema({
   id_diarista: positiveInteger,
   id_endereco: positiveInteger,
+  id_combo_base: positiveInteger,
   data_agendamento: date,
   horario_inicio: time,
   horario_fim: time,
@@ -723,7 +739,7 @@ components.schemas = {
   DiaristaCreate: diaristaCreate,
   DiaristaUpdate: partialSchema(diaristaCreate, ['id_usuario', 'endereco', 'servicos', 'combo_base']),
   Diarista: objectSchema({
-    id_diarista: positiveInteger, ...diaristaCreate.properties, avaliacao_media: { type: 'number', nullable: true }, valor_medio_diaria: { type: 'number', nullable: true },
+    id_diarista: positiveInteger, ...diaristaCreate.properties, avaliacao_media: { type: 'number', nullable: true }, valor_medio_diaria: { type: 'number', nullable: true }, distancia_km: { type: 'number', minimum: 0, nullable: true },
   }, ['id_diarista', 'id_usuario', 'descricao', 'qtd_max_comodos'], { additionalProperties: true }),
   DiaristaEstatisticas: objectSchema({
     agendamentos_por_status: { type: 'object', additionalProperties: { type: 'integer', minimum: 0 } },
@@ -754,7 +770,7 @@ components.schemas = {
   AgendamentoUpdate: objectSchema({ observacoes: nullableString(2000) }, [], { minProperties: 1 }),
   AgendamentoCancel: objectSchema({ descricao: nullableString(2000) }),
   Agendamento: objectSchema({
-    id_agendamento: positiveInteger, id_cliente: positiveInteger, id_diarista: positiveInteger, id_endereco: { ...positiveInteger, nullable: true },
+    id_agendamento: positiveInteger, id_cliente: positiveInteger, id_diarista: positiveInteger, id_endereco: { ...positiveInteger, nullable: true }, id_combo_base: { ...positiveInteger, nullable: true },
     data_agendamento: date, horario_inicio: { ...time, nullable: true }, horario_fim: { ...time, nullable: true },
     qtd_comodos: { type: 'integer', nullable: true }, tamanho_residencia: { type: 'string', enum: ['pequena', 'media', 'grande'], nullable: true },
     valor_estimado: { type: 'number', nullable: true }, observacoes: nullableString(2000), status: schemaRef('AgendamentoStatus'),
