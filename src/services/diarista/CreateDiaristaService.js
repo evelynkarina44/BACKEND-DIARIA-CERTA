@@ -1,6 +1,7 @@
 import { DiaristaRepository } from '../../repositories/diaristaRepository.js';
 import prisma from '../../lib/prisma.js';
 import { ForbiddenError, NotFoundError } from '../../errors/index.js';
+import { syncUsuarioTipo } from '../usuario/syncUsuarioTipo.js';
 
 export class CreateDiaristaService {
   constructor(repository = new DiaristaRepository(), database = prisma) {
@@ -12,11 +13,14 @@ export class CreateDiaristaService {
     const existingProfile = await this.repository.findByIdUsuario(data.id_usuario);
     const { endereco, servicos = [], combo_base, ...diarista } = data;
     if (!existingProfile && !servicos.length && !combo_base) {
-      return this.repository.create({
-        ...diarista,
-        avaliacao_media: null,
-        endereco: { create: endereco },
-      }, { include: { endereco: true } });
+      return this.database.$transaction(async (tx) => {
+        const profile = await tx.diarista.create({
+          data: { ...diarista, avaliacao_media: null, endereco: { create: endereco } },
+          include: { endereco: true },
+        });
+        await syncUsuarioTipo(tx, data.id_usuario);
+        return profile;
+      });
     }
 
     if (existingProfile) {
@@ -29,6 +33,7 @@ export class CreateDiaristaService {
         },
       });
       if (!servicos.length || current.diarista_servico.length || current.combo_base.length) {
+        await syncUsuarioTipo(this.database, data.id_usuario);
         return current;
       }
     }
@@ -90,6 +95,8 @@ export class CreateDiaristaService {
           });
         }
       }
+
+      await syncUsuarioTipo(tx, data.id_usuario);
 
       return tx.diarista.findUnique({
         where: { id_diarista: profile.id_diarista },

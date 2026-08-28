@@ -5,6 +5,12 @@ import { CreateDiaristaService } from '../src/services/diarista/CreateDiaristaSe
 test('cadastro da diarista grava perfil, preço individual, combo e vínculos em transação', async () => {
   const calls = [];
   const tx = {
+    cliente: {
+      findUnique: async () => ({ id_cliente: 4 }),
+    },
+    usuario: {
+      update: async ({ data }) => { calls.push(['usuario.update', data]); return data; },
+    },
     diarista: {
       create: async ({ data }) => { calls.push(['diarista', data]); return { id_diarista: 9 }; },
       findUnique: async () => ({ id_diarista: 9, diarista_servico: [], combo_base: [] }),
@@ -41,6 +47,7 @@ test('cadastro da diarista grava perfil, preço individual, combo e vínculos em
 
   assert.equal(calls.filter(([model]) => model === 'diarista_servico').length, 2);
   assert.equal(calls.filter(([model]) => model === 'combo_base').length, 1);
+  assert.deepEqual(calls.find(([operation]) => operation === 'usuario.update')?.[1], { tipo: 'AMBOS' });
   assert.deepEqual(calls.find(([model]) => model === 'combo_servico')?.[1], {
     id_combo_base: 15,
     id_servico: 2,
@@ -50,6 +57,12 @@ test('cadastro da diarista grava perfil, preço individual, combo e vínculos em
 test('cadastro da diarista retoma perfil parcial sem criar outra diarista', async () => {
   const calls = [];
   const tx = {
+    cliente: {
+      findUnique: async () => ({ id_cliente: 4 }),
+    },
+    usuario: {
+      update: async ({ data }) => { calls.push(['usuario.update', data]); return data; },
+    },
     diarista: {
       update: async ({ data }) => { calls.push(['diarista.update', data]); return { id_diarista: 9 }; },
       findUnique: async () => ({ id_diarista: 9, diarista_servico: [], combo_base: [] }),
@@ -93,4 +106,5 @@ test('cadastro da diarista retoma perfil parcial sem criar outra diarista', asyn
   assert.equal(calls.some(([operation]) => operation === 'diarista.create'), false);
   assert.equal(calls.filter(([operation]) => operation === 'diarista_servico').length, 1);
   assert.equal(calls.filter(([operation]) => operation === 'combo_base').length, 1);
+  assert.deepEqual(calls.find(([operation]) => operation === 'usuario.update')?.[1], { tipo: 'AMBOS' });
 });

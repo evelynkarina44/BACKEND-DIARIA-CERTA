@@ -713,13 +713,14 @@ components.schemas = {
   UsuarioUpdate: partialSchema(usuarioCreate),
   Usuario: objectSchema({
     id_usuario: positiveInteger, nome: { type: 'string' }, email: { type: 'string', format: 'email' }, telefone: { type: 'string' }, cpf: { type: 'string', nullable: true },
+    tipo: { type: 'string', enum: ['CLIENTE', 'DIARISTA', 'AMBOS'] },
     foto_perfil: { type: 'string' }, data_cadastro: { type: 'string', format: 'date-time' },
     cliente: { type: 'array', items: objectSchema({ id_cliente: positiveInteger }) },
     diarista: { type: 'array', items: objectSchema({ id_diarista: positiveInteger }) },
     profiles: { type: 'array', items: { type: 'string', enum: ['CLIENTE', 'DIARISTA'] } },
     activeProfile: { type: 'string', enum: ['CLIENTE', 'DIARISTA'], nullable: true },
     requiresProfileSelection: { type: 'boolean' },
-  }, ['id_usuario', 'nome', 'email', 'telefone']),
+  }, ['id_usuario', 'nome', 'email', 'telefone', 'tipo']),
   ClienteCreate: clienteCreate,
   ClienteUpdate: partialSchema(clienteCreate, ['id_usuario', 'endereco']),
   Cliente: objectSchema({

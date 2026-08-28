@@ -274,6 +274,7 @@ model usuario {
 enum usuario_tipo {
   CLIENTE
   DIARISTA
+  AMBOS
 }
 
 enum ocorrencia_agendamento_motivo {

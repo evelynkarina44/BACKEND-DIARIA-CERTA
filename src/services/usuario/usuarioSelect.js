@@ -4,6 +4,7 @@ export const usuarioPublicSelect = {
   email: true,
   telefone: true,
   cpf: true,
+  tipo: true,
   foto_perfil: true,
   data_cadastro: true,
   cliente: { select: { id_cliente: true } },
