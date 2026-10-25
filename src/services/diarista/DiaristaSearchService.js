@@ -1,7 +1,19 @@
+// APOIO POLLYANA — catalogProfiles() consulta cadastro; bookingCandidates() verifica agenda.
+// Mostrar apenas se precisar detalhar o acesso ao banco nas etapas 2 e 4 do roteiro.
 import prisma from '../../lib/prisma.js';
 import { currentLocalDate } from '../../utils/dateTime.js';
 import { calculateDistanceKm, coordinatesByCep } from '../location/CepGeocodingService.js';
 import { ExternalServiceError } from '../../errors/index.js';
+import { intervalsOverlap } from '../agendamento/availabilityPolicy.js';
+
+function bookingProfileWhere({ serviceIds, userId, comboId }) {
+  return {
+    id_usuario: { not: userId },
+    usuario: { ativo: true, bloqueado: false },
+    AND: serviceIds.map((id_servico) => ({ diarista_servico: { some: { id_servico, ativo: true } } })),
+    ...(comboId ? { combo_base: { some: { id_combo_base: comboId, ativo: true } } } : {}),
+  };
+}
 
 function publicProfileInclude() {
   const today = currentLocalDate();
@@ -65,6 +77,89 @@ function present(profile, serviceCatalog = [], distanceKm = null) {
 }
 
 export class DiaristaSearchService {
+  constructor(database = prisma) { this.database = database; }
+
+  // APOIO | ETAPA 2 — Selecionar dados públicos e ofertas ativas; nomes ambíguos exigem esclarecimento.
+  async catalogProfiles({ nome, id }) {
+    const base = { usuario: { ativo: true, bloqueado: false } };
+    const select = {
+      id_diarista: true, descricao: true, avaliacao_media: true,
+      usuario: { select: { nome: true } },
+      endereco: { select: { cidade: true, estado: true } },
+      diarista_servico: {
+        where: { ativo: true }, orderBy: { id_diarista_servico: 'asc' },
+        select: { id_servico: true, preco: true, servico: { select: { nome_servico: true, descricao: true } } },
+      },
+      combo_base: {
+        where: { ativo: true }, orderBy: { id_combo_base: 'asc' },
+        select: {
+          nome_combo: true, descricao: true, valor_base: true,
+          atende_casa_pequena: true, atende_casa_media: true, atende_casa_grande: true,
+          combo_servico: { orderBy: { id_combo_servico: 'asc' }, select: { id_servico: true, servico: { select: { nome_servico: true } } } },
+        },
+      },
+    };
+    const query = (where) => this.database.diarista.findMany({ where, select, take: 6, orderBy: { id_diarista: 'asc' } });
+    if (id) return query({ ...base, id_diarista: id });
+    if (!nome?.trim()) return [];
+    const name = nome.trim();
+    const exact = await query({ usuario: { ...base.usuario, nome: { equals: name } } });
+    return exact.length ? exact : query({ usuario: { ...base.usuario, nome: { contains: name } } });
+  }
+
+  // APOIO | ETAPA 4 — Horário cadastrado e ausência de conflito com Aceito ou Em_andamento.
+  // Pedidos Pendentes não bloqueiam o intervalo como uma reserva aceita.
+  async bookingCandidates({ date, start, serviceIds, userId, comboId }) {
+    const profiles = await this.database.diarista.findMany({
+      where: {
+        ...bookingProfileWhere({ serviceIds, userId, comboId }),
+        disponibilidade_diarista: { some: { dia_semana: date, disponivel: true, horario_fim: { not: null } } },
+      },
+      include: {
+        ...publicProfileInclude(),
+        disponibilidade_diarista: { where: { dia_semana: date, disponivel: true }, orderBy: { horario_inicio: 'asc' } },
+        agendamento: { where: { data_agendamento: date, status: { in: ['Aceito', 'Em_andamento'] } }, select: { horario_inicio: true, horario_fim: true } },
+      },
+      orderBy: { id_diarista: 'asc' },
+    });
+    return profiles.filter((profile) => {
+      const slot = profile.disponibilidade_diarista.find((item) => item.horario_inicio.getTime() === start.getTime() && item.horario_fim);
+      return slot && !profile.agendamento.some((appointment) => intervalsOverlap(slot, appointment));
+    });
+  }
+
+  async bookingOverview({ date, serviceIds, userId, comboId }) {
+    const today = currentLocalDate();
+    const maxDate = new Date(today); maxDate.setUTCDate(maxDate.getUTCDate() + 365);
+    const rangeEnd = new Date(date); rangeEnd.setUTCDate(rangeEnd.getUTCDate() + 90);
+    const range = { gte: today, lte: rangeEnd < maxDate ? rangeEnd : maxDate };
+    const [profiles, ownProfile] = await Promise.all([
+      this.database.diarista.findMany({
+        where: bookingProfileWhere({ serviceIds, userId, comboId }),
+        select: {
+          endereco: { select: { cep: true } },
+          disponibilidade_diarista: {
+            where: { dia_semana: range, disponivel: true, horario_fim: { not: null } },
+            orderBy: [{ dia_semana: 'asc' }, { horario_inicio: 'asc' }],
+            select: { dia_semana: true, horario_inicio: true, horario_fim: true },
+          },
+          agendamento: {
+            where: { data_agendamento: range, status: { in: ['Aceito', 'Em_andamento'] } },
+            select: { data_agendamento: true, horario_inicio: true, horario_fim: true },
+          },
+        },
+      }),
+      this.database.diarista.findUnique({
+        where: { id_usuario: userId },
+        select: {
+          diarista_servico: { where: { ativo: true }, select: { id_servico: true } },
+          disponibilidade_diarista: { where: { dia_semana: date, disponivel: true }, select: { horario_inicio: true } },
+        },
+      }),
+    ]);
+    return { profiles, ownProfile };
+  }
+
   async list({ page = 1, limit = 20, nome, bairro, cidade, estado, avaliacao_min, preco_min, preco_max, id_servico, cep_origem, distancia_max, ordenar = 'avaliacao' } = {}) {
     const serviceFilter = {};
     if (id_servico) serviceFilter.id_servico = id_servico;
@@ -73,15 +168,15 @@ export class DiaristaSearchService {
     }
 
     const where = {
-      ...(nome ? { usuario: { nome: { contains: nome } } } : {}),
+      usuario: { ativo: true, bloqueado: false, ...(nome ? { nome: { contains: nome } } : {}) },
       ...(avaliacao_min !== undefined ? { avaliacao_media: { gte: avaliacao_min } } : {}),
       ...(bairro || cidade || estado ? { endereco: { some: { ...(bairro ? { bairro: { contains: bairro } } : {}), ...(cidade ? { cidade: { contains: cidade } } : {}), ...(estado ? { estado } : {}) } } } : {}),
       ...(Object.keys(serviceFilter).length ? { diarista_servico: { some: serviceFilter } } : {}),
     };
 
     const [rawProfiles, serviceCatalog] = await Promise.all([
-      prisma.diarista.findMany({ where, include: publicProfileInclude() }),
-      prisma.servico.findMany({ orderBy: { nome_servico: 'asc' } }),
+      this.database.diarista.findMany({ where, include: publicProfileInclude() }),
+      this.database.servico.findMany({ orderBy: { nome_servico: 'asc' } }),
     ]);
     const origin = cep_origem ? await coordinatesByCep(cep_origem) : null;
     if (cep_origem && !origin) {
@@ -115,8 +210,8 @@ export class DiaristaSearchService {
 
   async find(id) {
     const [profile, serviceCatalog] = await Promise.all([
-      prisma.diarista.findUnique({ where: { id_diarista: Number(id) }, include: publicProfileInclude() }),
-      prisma.servico.findMany({ orderBy: { nome_servico: 'asc' } }),
+      this.database.diarista.findUnique({ where: { id_diarista: Number(id) }, include: publicProfileInclude() }),
+      this.database.servico.findMany({ orderBy: { nome_servico: 'asc' } }),
     ]);
     return profile ? present(profile, serviceCatalog) : null;
   }

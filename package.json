@@ -9,13 +9,17 @@
     "test": "node --test",
     "prisma:generate": "prisma generate",
     "prisma:validate": "prisma validate",
-    "check": "npm run prisma:validate && npm test"
+    "check": "npm run prisma:validate && npm test",
+    "chatbot:prepare": "node scripts/prepare-chatbot.js",
+    "chatbot:check": "node scripts/check-chatbot.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "@google/genai": "^2.30.0",
+    "@huggingface/transformers": "^4.3.1",
     "@prisma/client": "^6.19.3",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",

@@ -70,3 +70,14 @@ test('rota privada rejeita requisição sem JWT', async () => {
   assert.equal(response.status, 401);
   assert.equal((await response.json()).error, 'Token de acesso ausente');
 });
+
+test('todos os endpoints do chatbot exigem autenticação', async () => {
+  const id = 'd6130075-d886-4be1-b344-4bc508dbfa3c';
+  for (const [method, path] of [
+    ['POST', '/conversas'], ['GET', '/conversas'], ['GET', `/conversas/${id}`],
+    ['POST', `/conversas/${id}/mensagens`], ['POST', `/propostas/${id}/confirmar`], ['POST', `/propostas/${id}/cancelar`],
+  ]) {
+    const response = await fetch(`${baseUrl}/api/chatbot${path}`, { method });
+    assert.equal(response.status, 401);
+  }
+});

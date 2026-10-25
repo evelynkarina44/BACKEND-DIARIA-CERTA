@@ -10,7 +10,10 @@ const serviceName = z.string().trim().min(2).max(100).regex(
   'Use apenas letras, números, espaços e pontuação comum',
 );
 const nullableText = (max) => z.string().trim().max(max).nullable().optional();
-const dateOnly = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).transform((value) => new Date(`${value}T00:00:00.000Z`));
+const dateOnly = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}, 'Data inválida').transform((value) => new Date(`${value}T00:00:00.000Z`));
 const timeOnly = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/).transform((value) => new Date(`1970-01-01T${value.length === 5 ? `${value}:00` : value}.000Z`));
 
 export const idSchema = z.object({ id: positiveId });

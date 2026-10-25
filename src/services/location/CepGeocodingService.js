@@ -17,6 +17,15 @@ function validCoordinates(latitude, longitude) {
     && longitude <= 180;
 }
 
+export function coordinatesFromResponse(data) {
+  const rawLatitude = data?.location?.coordinates?.latitude;
+  const rawLongitude = data?.location?.coordinates?.longitude;
+  if ([rawLatitude, rawLongitude].some((value) => value === null || value === undefined || String(value).trim() === '')) return null;
+  const latitude = Number(rawLatitude);
+  const longitude = Number(rawLongitude);
+  return validCoordinates(latitude, longitude) ? { latitude, longitude } : null;
+}
+
 async function requestCoordinates(cep) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -27,9 +36,7 @@ async function requestCoordinates(cep) {
     });
     if (!response.ok) return null;
     const data = await response.json();
-    const latitude = Number(data?.location?.coordinates?.latitude);
-    const longitude = Number(data?.location?.coordinates?.longitude);
-    return validCoordinates(latitude, longitude) ? { latitude, longitude } : null;
+    return coordinatesFromResponse(data);
   } catch {
     return null;
   } finally {

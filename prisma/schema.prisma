@@ -33,6 +33,7 @@ model agendamento {
   avaliacao              avaliacao[]
   checkin_checkout       checkin_checkout[]
   ocorrencia_agendamento ocorrencia_agendamento[]
+  chatbot_proposta       chatbot_proposta?
 
   @@index([id_cliente], map: "fk_agendamento_cliente")
   @@index([id_diarista], map: "fk_agendamento_diarista")
@@ -101,6 +102,7 @@ model cliente {
   usuario         usuario              @relation(fields: [id_usuario], references: [id_usuario], onDelete: NoAction, onUpdate: NoAction, map: "fk_cliente_usuario")
   endereco        endereco[]
   favorito        favorito[]
+  chatbot_conversa chatbot_conversa[]
 
   @@index([id_usuario], map: "fk_cliente_usuario")
 }
@@ -269,6 +271,50 @@ model usuario {
   denuncia_denuncia_id_usuario_denunciadoTousuario  denuncia[]   @relation("denuncia_id_usuario_denunciadoTousuario")
   denuncia_denuncia_id_usuario_denuncianteTousuario denuncia[]   @relation("denuncia_id_usuario_denuncianteTousuario")
   diarista                                          diarista[]
+}
+
+model chatbot_conversa {
+  id_conversa String @id @default(uuid()) @db.Char(36)
+  id_cliente Int
+  estado Json
+  versao Int @default(0)
+  criado_em DateTime @default(now()) @db.Timestamp(3)
+  atualizado_em DateTime @updatedAt @db.Timestamp(3)
+  cliente cliente @relation(fields: [id_cliente], references: [id_cliente], onDelete: NoAction)
+  mensagens chatbot_mensagem[]
+  propostas chatbot_proposta[]
+
+  @@index([id_cliente, atualizado_em])
+}
+
+model chatbot_mensagem {
+  id_mensagem String @id @default(uuid()) @db.Char(36)
+  id_conversa String @db.Char(36)
+  id_requisicao String? @db.Char(36)
+  papel String @db.VarChar(12)
+  conteudo String @db.Text
+  fontes Json?
+  criado_em DateTime @default(now()) @db.Timestamp(3)
+  conversa chatbot_conversa @relation(fields: [id_conversa], references: [id_conversa], onDelete: Cascade)
+
+  @@unique([id_conversa, id_requisicao])
+  @@index([id_conversa, criado_em])
+}
+
+model chatbot_proposta {
+  id_proposta String @id @default(uuid()) @db.Char(36)
+  id_conversa String @db.Char(36)
+  status String @default("Pendente") @db.VarChar(20)
+  payload Json
+  resumo Json
+  assinatura String @db.Char(64)
+  expira_em DateTime @db.Timestamp(3)
+  criado_em DateTime @default(now()) @db.Timestamp(3)
+  id_agendamento Int? @unique
+  conversa chatbot_conversa @relation(fields: [id_conversa], references: [id_conversa], onDelete: Cascade)
+  agendamento agendamento? @relation(fields: [id_agendamento], references: [id_agendamento], onDelete: NoAction)
+
+  @@index([id_conversa, status, criado_em])
 }
 
 enum usuario_tipo {

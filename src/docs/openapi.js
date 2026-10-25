@@ -1,3 +1,5 @@
+import { chatbotPaths, chatbotSchemas } from './chatbotOpenapi.js';
+
 const id = {
   name: 'id',
   in: 'path',
@@ -821,6 +823,7 @@ export const openApiDocument = {
   },
   servers: [{ url: '/', description: 'Servidor atual' }],
   tags: [
+    { name: 'Assistente', description: 'Conversa com Gemini e RAG, propostas e confirmação de solicitações pelo cliente.' },
     { name: 'Sistema', description: 'Saúde e contrato da API.' },
     { name: 'Autenticação', description: 'Login e sessão autenticada.' },
     { name: 'Usuários', description: 'Contas de acesso.' },
@@ -840,8 +843,8 @@ export const openApiDocument = {
     { name: 'Denúncias', description: 'Denúncias entre usuários.' },
     { name: 'Ocorrências', description: 'Ocorrências ligadas a agendamentos.' },
   ],
-  paths,
-  components,
+  paths: { ...paths, ...chatbotPaths },
+  components: { ...components, schemas: { ...components.schemas, ...chatbotSchemas } },
 };
 
 export default openApiDocument;
