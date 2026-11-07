@@ -1,0 +1,464 @@
+PAGAMENTOS DO DIÁRIA CERTA — IMPLEMENTAÇÃO COM MERCADO PAGO
+Data: 25/10/2026
+
+ATUALIZAÇÃO — TESTE LOCAL HABILITADO
+
+Correção de sincronização em 01/11/2026: uma transação aprovada do Checkout
+Pro da conta test_user retornou live_mode=true. O backend agora aceita esse
+caso somente após verificar novamente a identidade da conta de teste e seu
+ID recebedor na API autenticada. Continuam obrigatórias as verificações de
+valor, moeda, referência, agendamento e fase; não há aprovação pelo navegador.
+
+Diagnóstico somente leitura:
+  node scripts/inspect-payment-sync.js --appointment=ID
+Recuperar uma aprovação de teste específica, sem cobrar nem estornar:
+  node scripts/sync-approved-test-payment.js --appointment=ID --payment=ID
+Esse utilitário recusa produção, pagamento não aprovado, outra parcela,
+fase inválida, duplicidade já registrada ou estorno pendente.
+
+Conforme autorizado, as credenciais fornecidas foram configuradas somente no
+.env do backend. A consulta GET /users/me confirmou uma conta brasileira com
+a identificação test_user. O prefixo APP_USR também é utilizado para contas
+de teste do Checkout Pro; ele não determina sozinho se a conta é de produção.
+
+A configuração local está com MERCADOPAGO_ENABLED=true, MERCADOPAGO_MODE=test
+e MERCADOPAGO_LOCAL_TEST=true. Neste modo, URLs públicas e Webhook são
+opcionais. Quando não configurados, o checkout é aberto em outra aba/janela;
+o usuário volta à aplicação e consulta o resultado pela API autenticada.
+O botão Atualizar pagamento e as consultas periódicas continuam verificando
+o pagamento no Mercado Pago. Nenhum status é simulado como aprovado.
+
+A falta de segredo não libera Webhooks sem assinatura. Sem esse segredo,
+essa rota rejeita notificações. O teste local é proibido em produção e o
+backend confirma a identidade test_user antes de criar checkout ou estorno.
+As contas de teste usam init_point, conforme o fluxo do Checkout Pro.
+
+Para testar o comprador, use outra conta de teste, diferente do vendedor,
+e os meios de pagamento de teste disponibilizados pelo Mercado Pago.
+Reinicie o backend depois de alterar o .env. Não é necessário preencher
+a Public Key no frontend para esta integração com checkout externo.
+
+Verificação somente da conta: node scripts/check-mercadopago.js
+Verificação de geração de link de teste: node scripts/check-mercadopago.js --checkout
+O segundo comando cria uma preferência de teste de R$ 1,00, com validade de
+15 minutos, sem efetuar pagamento e sem alterar agendamentos do banco.
+
+1. REGRA DEFINIDA
+
+O pagamento tem duas cobranças independentes, e não um parcelamento mensal:
+
+Solicitação do cliente -> aceite da diarista -> entrada de 50% -> check-in
+-> execução -> checkout da diarista -> pagamento dos 50% restantes.
+
+Não há cobrança na solicitação ainda pendente. A primeira metade só é
+liberada após o aceite. Recusa e expiração da solicitação não geram cobrança.
+O dinheiro é recebido na conta Mercado Pago configurada pela plataforma.
+Não foi implementado marketplace, split de recebíveis ou repasse automático.
+
+Exemplo: diária de R$ 300,00 = entrada de R$ 150,00 + saldo de R$ 150,00.
+Os valores são calculados no backend, a partir do valor do agendamento,
+e armazenados em centavos. Se o total possuir centavos ímpares, a diferença
+de um centavo fica no saldo; a soma das parcelas permanece igual ao total.
+
+2. O QUE MUDOU NO FLUXO
+
+CLIENTE
+- Solicita o agendamento normalmente, pela tela de agendamento ou chatbot.
+- Aguarda a diarista aceitar.
+- No Histórico, abre "Ver pagamento" e escolhe "Pagar entrada".
+- O checkout seguro do Mercado Pago é aberto fora da aplicação.
+- Conclui o pagamento e volta à aplicação para acompanhar a confirmação.
+- Acompanha o check-in registrado pela diarista; não precisa confirmar o início.
+- Após o checkout da diarista, abre o pagamento e paga o saldo.
+
+DIARISTA
+- Aceita ou recusa a solicitação normalmente.
+- Na agenda ou no Histórico, abre a diária e usa "Realizar check-in".
+- O check-in exige entrada já aprovada e horário agendado alcançado (não uma hora antes).
+- O clique registra o horário real e altera o agendamento para Em_andamento.
+- Ao terminar, usa "Realizar checkout" e confirma a finalização na própria tela.
+- O checkout registra a conclusão do serviço e libera a cobrança do saldo.
+
+O check-in não cobra novamente nem marca toda a diária como paga.
+O nome do endpoint antigo "confirmar-pagamento" foi mantido para
+compatibilidade, mas agora ele apenas confirma presença e verifica a entrada.
+Novos check-ins são iniciados diretamente pela diarista, sem essa etapa do cliente.
+A tela da diarista atualiza os dados a cada 15 segundos enquanto está visível.
+A tela de pagamento do cliente consulta a liberação do saldo a cada 15 segundos;
+isso não realiza cobrança nem substitui a aprovação do Mercado Pago.
+
+Sessão no checkout (web):
+O token agora usa sessionStorage por aba para sobreviver ao reload/Fast Refresh;
+em celulares continua no SecureStore. Logout remove o token. Uma resposta 401
+de uma requisição antiga não apaga o token de um login mais recente. Se a sessão
+atual expirar, a tela de check-in/checkout bloqueia as ações e oferece Entrar
+novamente. Não confirma checkout sem autenticação nem repete a finalização
+automaticamente após o login. O agendamento permanece no estado salvo no banco.
+Regressões no frontend: node --test scripts/test-auth-session.cjs (6 testes).
+
+Feedback visual das ações:
+O fluxo principal não depende mais do Histórico. A tela inicial da diarista
+exibe Minhas diárias, com até 3 cards priorizados por próxima ação. No cliente,
+os cards foram retirados da busca inicial e ficam na opção Minhas diárias do menu.
+O menu também abre Acompanhar diárias, com lista paginada, filtros, serviços,
+endereço, horários reais de check-in/checkout e situação das duas parcelas.
+As etapas são Solicitação, Aceite, Entrada, Diária, Saldo e Avaliação/Quitação.
+A diarista aceita/recusa diretamente no painel, sempre com confirmação modal.
+O cliente acessa entrada, saldo e avaliação; a diarista acessa check-in/checkout.
+Depois de agendar, pagar ou avaliar, o atalho principal leva a Minhas diárias.
+
+GET /api/agendamento/acompanhamento exige JWT e o perfil ativo correspondente.
+A consulta é somente leitura, paginada, sem retornar IDs/URLs internos do Mercado
+Pago, e não cria cobranças, consulta aprovação externa ou solicita estornos.
+Inclui ativos, pendências de pagamento, avaliações pendentes do cliente,
+conclusões de até 7 dias e recusas/cancelamentos/expirações de até 48 horas.
+Pendências de estorno/contestação também continuam visíveis.
+Há atualização a cada 15 segundos com a tela em foco e o aplicativo ativo,
+além de atualização ao retornar à tela/aba e botão Atualizar. Não são push
+notifications e não há promessa de atualização com o aplicativo fechado.
+
+Arquivos de acompanhamento:
+  backend: src/services/agendamento/AgendamentoTrackingService.js
+  frontend: src/components/appointment-tracker/index.tsx
+  frontend: src/screens/AcompanharDiariasScreen/index.tsx
+  frontend: src/utils/appointmentTracking.ts
+  frontend: src/services/trackingService.ts
+Testes: test/agendamentoTracking.test.js e, no frontend,
+node --test scripts/test-appointment-tracking.cjs.
+Nenhuma migração de banco foi necessária para este painel.
+
+Central interna de notificações (02/11/2026):
+- Sininho com contador nas telas iniciais dos dois perfis e em Minhas diárias.
+- Lista novidades dos últimos 30 dias: solicitação, resposta, entrada aprovada,
+  horário de check-in, início, checkout, saldo aprovado, avaliação e estornos.
+- Eventos são derivados dos registros reais e têm IDs estáveis por diária,
+  perfil e tipo. Não constitui uma trilha permanente de auditoria: eventos que
+  deixam de ser relevantes podem sair do feed ao mudar o estado da diária.
+- Abrir a central não marca tudo como lido. Tocar em um aviso marca somente
+  aquele aviso e abre a diária/pagamento correspondente; há Marcar todas lidas.
+- Leitura persistida em notificacao_leitura por usuário, perfil e chave do evento.
+- Trocar de perfil limpa o estado exibido; respostas antigas não podem mostrar
+  a lista ou redirecionar o novo perfil. O provider não remonta a navegação.
+- Polling central a cada 15 segundos com app ativo e aba visível, mais atualização
+  ao retornar ao aplicativo/aba. Não é push e não funciona com app fechado.
+- A central não aprova pagamentos, cria cobranças, cancela diárias ou estorna.
+
+Backend: src/services/notificacao/notificationEvents.js e NotificationService.js;
+src/routes/notificacaoRoutes.js; src/docs/notificacaoOpenapi.js.
+API: GET /api/notificacoes; PUT /api/notificacoes/{id}/lida;
+POST /api/notificacoes/marcar-todas-lidas. Todas exigem autenticação/perfil ativo.
+Frontend: src/contexts/NotificationContext.tsx; src/components/notification-bell;
+src/services/notificationService.ts; provider conectado no App.tsx.
+Migração: 20261102000000_notification_reads. Instalação isolada para banco legado:
+node scripts/install-notification-reads.js. A tabela foi instalada localmente e
+a migração registrada como aplicada, sem rodar migrações antigas em lote.
+O serviço usa SQL parametrizado para leituras, sem exigir substituir uma DLL
+Prisma em uso no Windows. Schema validado e modelo declarado no schema.prisma.
+Testes: test/notifications.test.js; test/notificationsDatabase.test.js (opt-in,
+RUN_NOTIFICATION_DATABASE_TESTS=1, fixtures revertidas); frontend:
+node --test scripts/test-notifications.cjs.
+
+src/components/action-modal/index.tsx centraliza confirmações, erros, avisos e
+sucesso em modais compatíveis com web e celular. Aplicado nas telas de pagamento,
+check-in/checkout, avaliação, solicitações da diarista e agendamento do cliente.
+Cancelar/fechar uma confirmação não chama a API. Confirmações bloqueiam cliques
+duplicados e o fechamento durante o processamento. Status de pagamento continuam
+na tela; mensagens de validação e resultados de ações aparecem nas modais.
+Regressões: node --test scripts/test-action-modal.cjs (frontend).
+
+IMPORTANTE: serviço concluído não significa pagamento integral confirmado.
+Após a confirmação das duas parcelas pela API, a tela de pagamento abre
+automaticamente a avaliação da diarista, somente para diária Concluido e ainda
+não avaliada pelo cliente. A avaliação aceita nota de 1 a 5 estrelas na tela e
+comentário opcional de até 2000 caracteres. O nome é carregado da diária real.
+A aprovação de apenas uma parcela ou o retorno do navegador não libera avaliação.
+Uma trava no agendamento e a restrição única impedem duplicidade por autor.
+O salvamento recalcula a média da diarista e mostra uma confirmação na tela.
+
+Arquivos de avaliação:
+  src/services/avaliacao/reviewPolicy.js — conclusão e pagamento integral.
+  src/services/avaliacao/AvaliacaoWorkflowService.js — gravação e média.
+  frontend: src/screens/AvaliacaoScreen/index.tsx — nota, comentário e confirmação.
+  frontend: src/screens/PagamentoScreen/index.tsx — abertura após quitação.
+  test/reviewAfterPayment.test.js — autorização, parcelas e duplicidade.
+
+Banco legado: scripts/install-review-fields.js verifica os campos ausentes
+autor_tipo e anonima e o índice único por diária/autor. Com --apply, adiciona
+somente o que falta, sem apagar dados e sem executar outras migrações antigas.
+Os campos já estão declarados no schema e na migração backend_evolution.
+
+O status Concluido descreve a execução. O campo quitado e o status_pagamento
+Pago só são definidos depois de as duas parcelas terem sido aprovadas.
+
+3. COMO O CHECKOUT FOI INTEGRADO
+
+Foi adotado o Checkout Pro via Preferences API, com redirecionamento para o
+ambiente do Mercado Pago. O frontend não coleta número de cartão, validade
+ou CVV. Pix e cartões disponíveis são escolhidos nesse ambiente, de acordo
+com a configuração da conta e a disponibilidade do provedor.
+Boletos foram excluídos nesta implementação para evitar vencimentos longos.
+O parcelamento do cartão no provedor está limitado a uma parcela por cobrança.
+
+O frontend envia somente o agendamento e a fase, Entrada ou Saldo.
+O backend verifica o dono, a fase liberada, o valor e pagamentos anteriores.
+Em seguida, envia um item com valor em BRL, uma referência única da parcela,
+metadados de associação, URLs de retorno e URL de notificação.
+O link de checkout tem vigência de 24 horas. Isso não é um prazo de quitação
+do agendamento: nenhuma expiração nova de agendamento aceito foi criada.
+
+Uma referência única liga a preferência, a parcela e as tentativas reais.
+Cliques repetidos reutilizam o link ainda válido. Uma reserva temporária
+evita criar preferências simultâneas enquanto o link está sendo preparado.
+
+4. CONFIRMAÇÃO REAL E SEGURANÇA
+
+Retornar à aplicação, copiar um Pix ou clicar em confirmar NÃO comprova
+pagamento. As telas antigas que simulavam sucesso foram substituídas pelo
+fluxo real. Nenhum parâmetro da URL de retorno é usado para aprovar a diária.
+
+Há dois caminhos de atualização:
+- Webhook: o Mercado Pago notifica uma atualização do pagamento.
+- Sincronização autenticada: a aplicação consulta os pagamentos novamente.
+
+No webhook, o backend verifica a assinatura x-signature com HMAC-SHA256,
+o x-request-id e o data.id da URL. O corpo não é usado como prova de aprovação.
+Depois, o backend consulta o pagamento na API autenticada do Mercado Pago.
+
+Antes de aceitar o resultado, verifica:
+- conta recebedora configurada;
+- ambiente de teste ou produção, pelo live_mode;
+- moeda BRL e valor exato da parcela;
+- referência e metadados do agendamento e da fase;
+- data da atualização, para não substituir um estado novo por outro antigo.
+
+Uma trava no agendamento serializa pagamento, cancelamento e check-in.
+O identificador real do pagamento é único, evitando duplicar notificações.
+Uma segunda aprovação da mesma parcela é encaminhada para estorno, em vez
+de considerar o cliente devedor de um valor adicional.
+
+O Access Token fica apenas no .env do backend. Não vai para o frontend,
+Swagger, resposta da API ou documento. O uso da credencial fornecida foi
+autorizado posteriormente e a conta de teste foi confirmada pela API oficial.
+
+A Public Key não é necessária nesta implementação com redirecionamento
+direto para o checkout. Ela seria usada em outro modelo, como integração
+com componentes JavaScript do Mercado Pago na própria página.
+
+5. ESTORNO NO CANCELAMENTO
+
+Foi autorizada a devolução integral da entrada se a diária for cancelada
+antes do início. O cancelamento e a marcação da fila ocorrem na mesma
+transação do banco. Uma aprovação tardia após cancelamento também entra na fila.
+
+O servidor processa a fila a cada minuto. A mesma chave X-Idempotency-Key
+é utilizada ao repetir uma solicitação de estorno. Uma falha de rede deixa
+o registro pendente para nova tentativa, inclusive depois de reiniciar o servidor.
+O estado financeiro só é atualizado conforme a confirmação do Mercado Pago.
+
+Cancelar não significa que o dinheiro já voltou à conta. A interface mostra
+o estorno em processamento. O prazo efetivo depende do meio de pagamento
+e do provedor; não foi inventado um prazo fixo de devolução.
+
+Cancelamentos depois do início continuam bloqueados pelo fluxo existente.
+Contestações são mostradas como Em_disputa e exigem acompanhamento operacional.
+Não foi criado um sistema automático de decisão de disputas ou repasse.
+
+6. ARQUIVOS PRINCIPAIS DO BACKEND
+
+src/services/pagamento/paymentPolicy.js
+  Conversão de dinheiro para centavos, divisão das parcelas, liberação de
+  cada fase e cálculo da situação financeira a partir das transações.
+
+src/services/pagamento/MercadoPagoClient.js
+  Configuração, URLs HTTPS, chamadas à API, timeout e estorno idempotente.
+  O domínio da API é fixo. Falhas não expõem credenciais ao cliente.
+
+src/services/pagamento/verifyWebhook.js
+  Validação HMAC da assinatura e comparação em tempo constante.
+
+src/services/pagamento/PaymentService.js
+  Coordena checkout, associação de transações, sincronização, validações,
+  consulta das parcelas e fila de estornos.
+
+src/routes/pagamentoRoutes.js
+  Rotas autenticadas para os participantes e webhook autenticado por assinatura.
+  Somente o cliente titular pode iniciar pagamento. Há limite de consultas.
+
+src/services/checkinCheckout/CheckinCheckoutWorkflowService.js
+  Exige entrada aprovada no check-in e libera o saldo depois do checkout.
+
+src/services/agendamento/AgendamentoWorkflowService.js
+  No cancelamento antes do início, marca os pagamentos para estorno.
+
+src/server.js
+  Agenda o processamento periódico da fila de estornos.
+
+src/docs/pagamentoOpenapi.js e src/docs/openapi.js
+  Contratos de API publicados no Swagger em /api-docs/.
+
+src/knowledge/platformKnowledge.js
+  Explica ao chatbot as regras de pagamento e estorno. O assistente continua
+  sem autoridade para pagar ou confirmar transações em nome do cliente.
+
+7. BANCO DE DADOS
+
+prisma/schema.prisma
+  pagamento_parcela: duas fases únicas por agendamento, valor em centavos,
+  status, preferência e link de checkout.
+  pagamento_transacao: cada tentativa real, status do provedor, valor
+  estornado, atualização e indicador de estorno pendente.
+
+Migrações acrescentadas:
+  20261025000000_mercado_pago_parcelas
+  20261025010000_checkin_payment_states
+
+A primeira cria as duas tabelas. A segunda compatibiliza os estados do
+check-in e preserva os estados legados, incluindo o antigo valor Pago.
+O valor legado não é convertido automaticamente em aprovação do Mercado Pago.
+
+As parcelas são criadas na primeira abertura do checkout, em transação.
+Agendamentos antigos não são marcados como pagos automaticamente.
+
+Neste ambiente, o histórico antigo de migrações divergia dos arquivos locais.
+Por isso foram aplicadas apenas as novas estruturas e registradas apenas
+essas duas migrações como aplicadas. Nenhuma migração antiga foi reaplicada,
+nenhum reset foi executado e nenhum dado existente foi apagado.
+
+scripts/install-payments.js é o instalador pontual das duas tabelas usado
+nesse cenário. Ele recusa reinstalar se encontrar alguma tabela já existente.
+Não execute prisma migrate reset. Antes de usar migrate deploy neste banco,
+reconcilie o histórico antigo de migrações com uma revisão específica.
+
+8. ARQUIVOS PRINCIPAIS DO FRONTEND
+
+Projeto: PI_DiariaCerta/diaria-certa
+
+src/services/pagamentoService.ts
+  Chamadas HTTP tipadas; não contém credenciais do Mercado Pago.
+
+src/screens/PagamentoScreen/index.tsx e paymentStyles.ts
+  Tela das duas parcelas, checkout externo, consulta de situação e cancelamento
+  com confirmação. Usa o padrão de cores e fontes do projeto.
+  Após abrir o checkout, consulta atualizações a cada 15 segundos, por até
+  oito tentativas ativas, e também ao retornar ao aplicativo. Há consulta manual.
+
+src/screens/HistoricoClienteScreen/index.tsx
+  Acesso ao pagamento, atualização dos agendamentos e confirmação de check-in.
+
+src/screens/CheckInScreen/index.tsx
+  Mostra o agendamento real e confirma presença, sem cobrar no check-in.
+
+src/screens/CheckInDiaristaScreen/index.tsx
+  Solicita check-in ou finaliza a diária, conforme o estado do agendamento;
+  mostra a situação das parcelas.
+
+src/screens/HistoricoDiaristaScreen/index.tsx
+  Acesso à diária para check-in, checkout e consulta de pagamentos.
+
+As rotas PagamentoPix, PagamentoRealizado e AdicionarPagamento reutilizam
+a tela real. Foram removidos o Pix fixo, os dados simulados de sucesso e
+o formulário que coletava dados de cartão sem processamento real.
+
+9. CONFIGURAÇÃO NECESSÁRIA ANTES DE COBRAR
+
+O .env local já foi configurado para teste, conforme a atualização no início
+deste documento. Para ambientes novos/publicados, o .env.example do BACKEND
+mantém um modelo inicialmente desabilitado:
+
+MERCADOPAGO_ENABLED=false
+MERCADOPAGO_MODE=test
+MERCADOPAGO_LOCAL_TEST=false
+MERCADOPAGO_ACCESS_TOKEN=""
+MERCADOPAGO_COLLECTOR_ID=""
+MERCADOPAGO_WEBHOOK_SECRET=""
+MERCADOPAGO_WEBHOOK_URL=""
+MERCADOPAGO_RETURN_URL=""
+
+Passos para preparar um ambiente publicado (no teste local, siga a atualização inicial):
+1) Configure as credenciais do ambiente escolhido, mantendo-as somente no .env.
+2) Configure as credenciais da conta do ambiente que será testado.
+3) Preencha COLLECTOR_ID com o ID da conta recebedora desse ambiente.
+4) Publique ou exponha o backend por uma URL HTTPS pública. localhost não
+   recebe notificações externas do Mercado Pago.
+5) Configure a URL completa https://SEU_BACKEND/api/pagamento/webhook em
+   MERCADOPAGO_WEBHOOK_URL e em Suas integrações > Webhooks.
+6) Habilite o evento Pagamentos e copie o segredo de assinatura gerado
+   para MERCADOPAGO_WEBHOOK_SECRET. Não confundir com o Access Token.
+7) Preencha RETURN_URL com a URL HTTPS pública do frontend. O retorno
+   não aprova pagamentos; o cliente acompanha a situação na aplicação.
+8) Depois de preencher, habilite MERCADOPAGO_ENABLED=true no ambiente de teste.
+9) Teste com contas e meios de pagamento de teste, seguindo as orientações
+   do Mercado Pago. Não use uma cobrança real para validar código automaticamente.
+10) Reinicie o backend para carregar o .env e o Prisma atualizado.
+
+Para produção, use as credenciais e o recebedor de produção e altere
+MERCADOPAGO_MODE=production. Confirme as URLs e os Webhooks desse ambiente.
+Não misture pagamentos reais com modo test: eles serão rejeitados na validação.
+
+Se prisma generate apresentar EPERM no Windows, encerre todos os processos
+do backend que carregam o Prisma, rode npm run prisma:generate e reinicie.
+Não encerre outros projetos indiscriminadamente.
+
+A lógica completa foi testada com provedor simulado. Também foi confirmada
+a conta de teste e validada a criação de um link na API do Mercado Pago.
+Não foi efetuado pagamento ou estorno real. A conclusão de uma compra de
+teste deve ser validada com uma conta de teste compradora, diferente da vendedora.
+
+10. ENDPOINTS
+
+GET  /api/pagamento/agendamento/:id
+     Resumo das parcelas para cliente ou diarista participante.
+
+POST /api/pagamento/agendamento/:id/checkout
+     Corpo: { "fase": "Entrada" } ou { "fase": "Saldo" }.
+     Retorna checkout_url. Só o cliente pode solicitar.
+
+POST /api/pagamento/agendamento/:id/sincronizar
+     Corpo vazio {}. Consulta o provedor; não aceita um status fornecido
+     pelo navegador como comprovação de pagamento.
+
+POST /api/pagamento/webhook?data.id=IDENTIFICADOR
+     Exige assinatura de Webhook e x-request-id. Não utiliza JWT de cliente.
+
+Os endpoints existentes de agendamento e check-in permanecem disponíveis.
+O Swagger foi atualizado com os contratos e os novos significados.
+
+11. TESTES
+
+npm test
+  Suíte de testes automatizados, incluindo regras de dinheiro, fases,
+  autenticação, assinatura, configuração e prevenção do pagamento por clique.
+
+PowerShell — integração com MySQL e Mercado Pago simulado:
+  $env:RUN_PAYMENT_DATABASE_TESTS='1'
+  node --test test/pagamentoDatabase.test.js
+
+Esse teste verifica valor e moeda, conta recebedora, ambiente, metadados,
+reutilização do checkout, duas parcelas, check-in, checkout, duplicidade,
+notificações antigas, cancelamento, estorno e repetição após falha de rede.
+Os dados de teste são inseridos em uma transação sempre revertida.
+Nenhuma chamada de cobrança ou estorno real é feita.
+
+Regressão do chatbot com MySQL:
+  $env:RUN_CHATBOT_DATABASE_TESTS='1'
+  node --test test/chatbotDatabase.test.js
+
+Frontend:
+  node node_modules/typescript/bin/tsc --noEmit
+
+12. REFERÊNCIAS OFICIAIS CONSULTADAS
+
+Criação de preferência do Checkout Pro:
+https://www.mercadopago.com.br/developers/pt/reference/online-payments/checkout-pro-preferences/create-preference/post
+
+Consulta de pagamento:
+https://www.mercadopago.com.br/developers/pt/reference/online-payments/checkout-pro-preferences/get-payment/get
+
+Notificações de pagamento:
+https://www.mercadopago.com.br/developers/pt/docs/checkout-pro-preferences/payment-notifications
+
+Assinatura e notificações:
+https://www.mercadopago.com.br/developers/pt/docs/wallet-connect/notifications
+
+Reembolso de pagamento:
+https://www.mercadopago.com.br/developers/pt/reference/online-payments/checkout-api-payments/create-refund/post

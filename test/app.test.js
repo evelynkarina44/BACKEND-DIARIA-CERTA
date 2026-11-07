@@ -37,6 +37,25 @@ test('GET /health confirma que a aplicação inicializou', async () => {
   assert.deepEqual(await response.json(), { status: 'ok' });
 });
 
+test('pagamentos exigem JWT e webhook sem configuração ou assinatura não aprova nada', async () => {
+  for (const [method, path] of [
+    ['GET', '/api/pagamento/agendamento/1'],
+    ['GET', '/api/agendamento/acompanhamento'],
+    ['GET', '/api/notificacoes'],
+    ['PUT', '/api/notificacoes/' + 'a'.repeat(64) + '/lida'],
+    ['POST', '/api/notificacoes/marcar-todas-lidas'],
+    ['POST', '/api/pagamento/agendamento/1/checkout'],
+    ['POST', '/api/pagamento/agendamento/1/sincronizar'],
+  ]) {
+    const response = await fetch(`${baseUrl}${path}`, { method });
+    assert.equal(response.status, 401);
+  }
+  const response = await fetch(`${baseUrl}/api/pagamento/webhook?data.id=123`, {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'payment', data: { id: '123' }, status: 'approved' }),
+  });
+  assert.ok([401, 503].includes(response.status));
+});
+
 test('rota inexistente retorna 404 padronizado', async () => {
   const response = await fetch(`${baseUrl}/inexistente`);
   assert.equal(response.status, 404);

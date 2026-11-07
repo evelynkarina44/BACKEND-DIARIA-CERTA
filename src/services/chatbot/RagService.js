@@ -1,5 +1,6 @@
 // EVELYN | ETAPAS 2 A 7 — Núcleo do RAG: chunks, índice e recuperação.
-// Ordem para navegar: createChunks -> prepare -> retrieve -> normalizedDotProduct -> filtros.
+// Ordem para navegar: prepare -> buildIndex -> createDocumentChunks -> createChunks.
+// Na consulta: retrieve -> normalizedDotProduct -> filtros de pontuação e fonte.
 import { platformKnowledge } from '../../knowledge/platformKnowledge.js';
 import { EmbeddingService } from './EmbeddingService.js';
 
@@ -38,29 +39,49 @@ export class RagService {
   // Faz inferência com modelo pré-treinado; não realiza fine-tuning nem treina o Gemini.
   async prepare() {
     if (!this.indexPromise) {
-      this.indexPromise = (async () => {
-        // Respeita tanto os parâmetros do NYLEVE quanto o limite real do tokenizer.
-        const chunks = [];
-        for (const document of this.documents) {
-          let size = 450;
-          let pieces;
-          while (true) {
-            pieces = createChunks([document], size, Math.min(60, Math.floor(size / 4)));
-            // APOIO | ETAPA 2 — Caracteres não são tokens: reduzir se ultrapassar 128 tokens.
-            const counts = await Promise.all(pieces.map((piece) => this.embedding.tokenCount(piece.texto)));
-            if (counts.every((count) => count <= 128)) break;
-            if (size <= 80) throw new Error('Documento excede o limite de tokens');
-            size = Math.floor(size * 0.75);
-          }
-          chunks.push(...pieces);
-        }
-        // ETAPA 3 — Codificar chunks e exemplos de perguntas com o mesmo modelo de embeddings.
-        const questions = this.documents.flatMap((document) => (document.perguntas || []).map((texto) => ({ fonte: document.id, texto })));
-        const vectors = await this.embedding.encode([...chunks.map((chunk) => chunk.texto), ...questions.map((question) => question.texto)]);
-        return { chunks, vectors: vectors.slice(0, chunks.length), questions: questions.map((question, index) => ({ ...question, vector: vectors[chunks.length + index] })) };
-      })().catch((error) => { this.indexPromise = undefined; throw error; });
+      this.indexPromise = this.buildIndex().catch((error) => {
+        // Uma falha não deve impedir uma nova tentativa de preparar o índice.
+        this.indexPromise = undefined;
+        throw error;
+      });
     }
     return this.indexPromise;
+  }
+
+  async createDocumentChunks(document) {
+    let size = 450;
+    while (true) {
+      const overlap = Math.min(60, Math.floor(size / 4));
+      const chunks = createChunks([document], size, overlap);
+      // APOIO | ETAPA 2 — Caracteres não são tokens: reduzir se ultrapassar 128 tokens.
+      const counts = await Promise.all(chunks.map((chunk) => this.embedding.tokenCount(chunk.texto)));
+      if (counts.every((count) => count <= 128)) return chunks;
+      if (size <= 80) throw new Error('Documento excede o limite de tokens');
+      size = Math.floor(size * 0.75);
+    }
+  }
+
+  async buildIndex() {
+    const chunks = [];
+    const questions = [];
+    for (const document of this.documents) {
+      chunks.push(...await this.createDocumentChunks(document));
+      for (const texto of document.perguntas || []) {
+        questions.push({ fonte: document.id, texto });
+      }
+    }
+
+    // ETAPA 3 — Codificar chunks e exemplos de perguntas com o mesmo modelo de embeddings.
+    const texts = [...chunks.map((chunk) => chunk.texto), ...questions.map((question) => question.texto)];
+    const vectors = await this.embedding.encode(texts);
+    return {
+      chunks,
+      vectors: vectors.slice(0, chunks.length),
+      questions: questions.map((question, index) => ({
+        ...question,
+        vector: vectors[chunks.length + index],
+      })),
+    };
   }
 
   // EVELYN | ETAPA 4 — A pergunta entra no mesmo espaço vetorial da base.
@@ -72,15 +93,26 @@ export class RagService {
     const questionScores = new Map();
     // A pontuação também considera perguntas editoriais, com fator 0.9, combinadas pelo máximo.
     for (const item of questions) {
-      questionScores.set(item.fonte, Math.max(questionScores.get(item.fonte) || 0, normalizedDotProduct(item.vector, question) * 0.9));
+      const previousScore = questionScores.get(item.fonte) || 0;
+      const exampleScore = normalizedDotProduct(item.vector, question) * 0.9;
+      questionScores.set(item.fonte, Math.max(previousScore, exampleScore));
     }
+    const ranked = chunks.map((chunk, index) => {
+      const textScore = normalizedDotProduct(vectors[index], question);
+      const exampleScore = questionScores.get(chunk.fonte) || 0;
+      return { ...chunk, score: Math.max(textScore, exampleScore) };
+    }).filter((chunk) => chunk.score >= threshold)
+      .sort((a, b) => b.score - a.score);
+
     // ETAPA 6 — Filtrar, ordenar e evitar repetir fontes. Pode retornar menos de 3 ou nenhum trecho.
     // ETAPA 7 — O retorno é o contexto recuperado; continuar em ChatbotService.message().
     const seen = new Set();
-    return chunks.map((chunk, index) => ({ ...chunk, score: Math.max(normalizedDotProduct(vectors[index], question), questionScores.get(chunk.fonte) || 0) }))
-      .filter((chunk) => chunk.score >= threshold)
-      .sort((a, b) => b.score - a.score)
-      .filter((chunk) => { if (seen.has(chunk.fonte)) return false; seen.add(chunk.fonte); return true; }).slice(0, topK);
+    const uniqueSources = ranked.filter((chunk) => {
+      if (seen.has(chunk.fonte)) return false;
+      seen.add(chunk.fonte);
+      return true;
+    });
+    return uniqueSources.slice(0, topK);
   }
 }
 

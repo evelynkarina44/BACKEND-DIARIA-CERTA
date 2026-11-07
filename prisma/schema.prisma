@@ -34,6 +34,7 @@ model agendamento {
   checkin_checkout       checkin_checkout[]
   ocorrencia_agendamento ocorrencia_agendamento[]
   chatbot_proposta       chatbot_proposta?
+  pagamento_parcela      pagamento_parcela[]
 
   @@index([id_cliente], map: "fk_agendamento_cliente")
   @@index([id_diarista], map: "fk_agendamento_diarista")
@@ -89,6 +90,42 @@ model checkin_checkout {
   agendamento      agendamento                     @relation(fields: [id_agendamento], references: [id_agendamento], onDelete: NoAction, onUpdate: NoAction, map: "fk_check_agendamento")
 
   @@index([id_agendamento], map: "fk_check_agendamento")
+}
+
+// Uma parcela de entrada e uma de saldo por diária; valores congelados em centavos.
+model pagamento_parcela {
+  id_parcela String @id @default(uuid()) @db.Char(36)
+  id_agendamento Int
+  fase String @db.VarChar(10)
+  valor_centavos Int
+  status String @default("Pendente") @db.VarChar(24)
+  id_preferencia String? @db.VarChar(100)
+  checkout_url String? @db.VarChar(500)
+  expira_em DateTime? @db.Timestamp(3)
+  criacao_em DateTime? @db.Timestamp(3)
+  criado_em DateTime @default(now()) @db.Timestamp(3)
+  atualizado_em DateTime @updatedAt @db.Timestamp(3)
+  agendamento agendamento @relation(fields: [id_agendamento], references: [id_agendamento], onDelete: NoAction)
+  transacoes pagamento_transacao[]
+
+  @@unique([id_agendamento, fase])
+}
+
+// Guarda cada tentativa real para reconhecer duplicidade, estorno e notificações repetidas.
+model pagamento_transacao {
+  id_pagamento String @id @db.VarChar(100)
+  id_parcela String @db.Char(36)
+  status String @db.VarChar(40)
+  valor_centavos Int
+  estornado_centavos Int @default(0)
+  provedor_atualizado_em DateTime @db.Timestamp(3)
+  estorno_pendente Boolean @default(false)
+  criado_em DateTime @default(now()) @db.Timestamp(3)
+  atualizado_em DateTime @updatedAt @db.Timestamp(3)
+  parcela pagamento_parcela @relation(fields: [id_parcela], references: [id_parcela], onDelete: NoAction)
+
+  @@index([id_parcela])
+  @@index([estorno_pendente])
 }
 
 model cliente {
@@ -271,6 +308,24 @@ model usuario {
   denuncia_denuncia_id_usuario_denunciadoTousuario  denuncia[]   @relation("denuncia_id_usuario_denunciadoTousuario")
   denuncia_denuncia_id_usuario_denuncianteTousuario denuncia[]   @relation("denuncia_id_usuario_denuncianteTousuario")
   diarista                                          diarista[]
+  notificacao_leitura                                notificacao_leitura[]
+}
+
+// Eventos são derivados dos registros da diária; esta tabela persiste apenas
+// a leitura, isolada por usuário e perfil, inclusive após sair e entrar no app.
+model notificacao_leitura {
+  id_usuario   Int
+  perfil       notificacao_perfil
+  chave_evento String @db.Char(64)
+  lida_em      DateTime @default(now()) @db.Timestamp(3)
+  usuario      usuario @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade, map: "fk_notificacao_leitura_usuario")
+
+  @@id([id_usuario, perfil, chave_evento])
+}
+
+enum notificacao_perfil {
+  CLIENTE
+  DIARISTA
 }
 
 model chatbot_conversa {
@@ -339,6 +394,7 @@ enum denuncia_motivo {
 
 enum checkin_checkout_status_checkin {
   N_o_iniciado         @map("Não iniciado")
+  Pago_legado          @map("Pago")
   Checkin_solicitado
   Aguardando_pagamento
   Iniciado

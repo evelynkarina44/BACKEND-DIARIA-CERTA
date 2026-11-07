@@ -237,11 +237,22 @@ export class AgendamentoWorkflowService {
   }
 
   async cancel(id, auth, descricao = null) {
-    const appointment = await this.find(id, auth);
-    if (!appointment) throw new NotFoundError('Agendamento não encontrado');
-    if (!['Pendente', 'Aceito'].includes(appointment.status)) throw new ConflictError('Agendamento não pode ser cancelado');
     return this.database.$transaction(async (tx) => {
+      // A mesma trava usada pelo pagamento e check-in impede cancelar uma diária já iniciada.
+      await tx.$queryRaw`SELECT id_agendamento FROM agendamento WHERE id_agendamento = ${Number(id)} FOR UPDATE`;
+      const appointment = await tx.agendamento.findUnique({ where: { id_agendamento: Number(id) } });
+      if (!appointment) throw new NotFoundError('Agendamento não encontrado');
+      if (!isParticipant(appointment, auth)) throw new ForbiddenError('Agendamento não pertence ao usuário autenticado');
+      if (!['Pendente', 'Aceito'].includes(appointment.status)) throw new ConflictError('Agendamento não pode ser cancelado');
       const updated = await tx.agendamento.update({ where: { id_agendamento: Number(id) }, data: { status: 'Cancelado', respondido_em: new Date() }, include: agendamentoInclude });
+      // Estorno integral autorizado: a chamada externa ocorre depois, em uma fila com repetição segura.
+      await tx.pagamento_transacao.updateMany({
+        where: { status: 'approved', parcela: { id_agendamento: Number(id) } },
+        data: { estorno_pendente: true },
+      });
+      await tx.pagamento_parcela.updateMany({
+        where: { id_agendamento: Number(id), status: 'Pago' }, data: { status: 'Estorno_pendente' },
+      });
       await tx.ocorrencia_agendamento.create({ data: { id_agendamento: Number(id), motivo: 'cancelamento', descricao } });
       return present(updated);
     });

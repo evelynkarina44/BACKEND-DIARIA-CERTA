@@ -1,5 +1,6 @@
 import prisma from '../../lib/prisma.js';
 import { ConflictError, ForbiddenError, NotFoundError } from '../../errors/index.js';
+import { canCustomerReview } from './reviewPolicy.js';
 
 function authorType(appointment, auth) {
   if (appointment.id_cliente === auth?.id_cliente) return 'Cliente';
@@ -28,13 +29,24 @@ function present(review) {
 }
 
 export class AvaliacaoWorkflowService {
-  async create(data, auth) {
-    const appointment = await prisma.agendamento.findUnique({ where: { id_agendamento: data.id_agendamento } });
-    if (!appointment) throw new NotFoundError('Agendamento não encontrado');
-    if (appointment.status !== 'Concluido') throw new ConflictError('Avaliações são liberadas somente após a conclusão');
-    const autor_tipo = authorType(appointment, auth);
+  constructor(database = prisma) { this.database = database; }
 
-    return prisma.$transaction(async (tx) => {
+  async create(data, auth) {
+    return this.database.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id_agendamento FROM agendamento WHERE id_agendamento = ${data.id_agendamento} FOR UPDATE`;
+      const appointment = await tx.agendamento.findUnique({
+        where: { id_agendamento: data.id_agendamento }, include: { pagamento_parcela: true },
+      });
+      if (!appointment) throw new NotFoundError('Agendamento não encontrado');
+      const autor_tipo = authorType(appointment, auth);
+      if (appointment.status !== 'Concluido') throw new ConflictError('Avaliações são liberadas somente após a conclusão');
+      if (autor_tipo === 'Cliente' && !canCustomerReview(appointment)) {
+        throw new ConflictError('A avaliação da diarista é liberada após a aprovação das duas parcelas do pagamento.');
+      }
+      const existing = await tx.avaliacao.findUnique({
+        where: { id_agendamento_autor_tipo: { id_agendamento: appointment.id_agendamento, autor_tipo } },
+      });
+      if (existing) throw new ConflictError('Você já avaliou esta diária.');
       const review = await tx.avaliacao.create({
         data: {
           id_agendamento: appointment.id_agendamento,

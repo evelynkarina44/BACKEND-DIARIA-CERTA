@@ -1,4 +1,6 @@
 import { chatbotPaths, chatbotSchemas } from './chatbotOpenapi.js';
+import { pagamentoPaths, pagamentoSchemas } from './pagamentoOpenapi.js';
+import { notificationPaths, notificationSchemas } from './notificacaoOpenapi.js';
 
 const id = {
   name: 'id',
@@ -392,6 +394,26 @@ paths['/api/agendamento/estimativa'] = {
   },
 };
 
+paths['/api/agendamento/acompanhamento'] = {
+  get: {
+    tags: ['Agendamentos'], summary: 'Acompanhar solicitações, execução e pagamentos', operationId: 'acompanharAgendamentos',
+    description: 'Somente dados do perfil ativo. Inclui agendamentos ativos, pagamentos/avaliações pendentes, conclusões dos últimos 7 dias e recusas/cancelamentos/expirações das últimas 48 horas. Consulta estados locais sem criar cobranças, sincronizar pagamentos ou iniciar estornos.',
+    parameters: paginationParameters, security: bearerSecurity,
+    responses: { '200': successResponse('Acompanhamento paginado.', {
+      type: 'object', properties: {
+        data: { type: 'array', items: { type: 'object', properties: {
+          id_agendamento: { type: 'integer' }, status: schemaRef('AgendamentoStatus'),
+          inicio_em: { type: 'string', format: 'date-time', nullable: true },
+          pessoa: { type: 'object', nullable: true, properties: { nome: { type: 'string' }, foto_perfil: { type: 'string', nullable: true } } },
+          pagamento: { allOf: [schemaRef('PagamentoResumo')], nullable: true },
+        } } },
+        pagination: { type: 'object', properties: { page: { type: 'integer' }, limit: { type: 'integer' }, total: { type: 'integer' }, pages: { type: 'integer' } } },
+        atualizado_em: { type: 'string', format: 'date-time' },
+      },
+    }), ...standardErrors({ authenticated: true, forbidden: true }) },
+  },
+};
+
 paths['/api/agendamento/{id}'] = {
   get: {
     tags: ['Agendamentos'], summary: 'Buscar agendamento por ID', operationId: 'buscarAgendamentoPorId',
@@ -450,9 +472,9 @@ paths['/api/checkin-checkout/agendamento/{id}'] = {
 };
 
 for (const action of [
-  { path: 'solicitar', summary: 'Solicitar check-in', operationId: 'solicitarCheckin', description: 'A diarista pode solicitar a partir de uma hora antes do serviço aceito.' },
-  { path: 'confirmar-pagamento', summary: 'Confirmar pagamento e check-in', operationId: 'confirmarPagamento', description: 'O cliente confirma o pagamento e inicia o serviço.' },
-  { path: 'checkout', summary: 'Realizar check-out', operationId: 'realizarCheckout', description: 'A diarista conclui um serviço iniciado e pago.' },
+  { path: 'solicitar', summary: 'Realizar check-in', operationId: 'solicitarCheckin', description: 'A diarista registra o início a partir do horário agendado, com entrada paga e agendamento aceito. Registra horario_checkin e altera o agendamento para Em_andamento sem exigir confirmação adicional do cliente. Não cobra nem aprova pagamentos.' },
+  { path: 'confirmar-pagamento', summary: 'Confirmar presença e iniciar check-in', operationId: 'confirmarPagamento', description: 'Compatibilidade do endpoint antigo: exige entrada já aprovada pelo Mercado Pago. Não marca a diária como paga nem cobra outra parcela.' },
+  { path: 'checkout', summary: 'Realizar check-out e liberar saldo', operationId: 'realizarCheckout', description: 'A diarista conclui um serviço iniciado. O saldo de 50% é liberado para pagamento separado pelo cliente.' },
 ]) {
   paths[`/api/checkin-checkout/agendamento/{id}/${action.path}`] = {
     post: {
@@ -469,7 +491,7 @@ addCrud({
   security: { create: true, update: true, delete: true },
   descriptions: {
     list: 'Lista avaliações públicas.',
-    create: 'O autor é derivado do token. Só participantes podem avaliar após a conclusão, uma vez por lado.',
+    create: 'O autor é derivado do token. Só participantes podem avaliar após a conclusão, uma vez por lado. A avaliação do cliente exige a aprovação de Entrada e Saldo. Comentário opcional, com até 2000 caracteres.',
     update: 'Somente o autor pode atualizar a própria avaliação.',
     delete: 'Somente o autor pode excluir a própria avaliação.',
   },
@@ -789,7 +811,7 @@ components.schemas = {
   CheckinCheckout: objectSchema({
     id_check: positiveInteger, id_agendamento: positiveInteger, horario_checkin: { type: 'string', format: 'date-time', nullable: true },
     horario_checkout: { type: 'string', format: 'date-time', nullable: true },
-    status_checkin: { type: 'string', enum: ['N_o_iniciado', 'Checkin_solicitado', 'Aguardando_pagamento', 'Iniciado', 'Checkout_solicitado', 'Finalizado'] },
+    status_checkin: { type: 'string', enum: ['N_o_iniciado', 'Pago_legado', 'Checkin_solicitado', 'Aguardando_pagamento', 'Iniciado', 'Checkout_solicitado', 'Finalizado'] },
     status_pagamento: { type: 'string', enum: ['Pendente', 'Pago', 'Falhou'] }, pagamento_em: { type: 'string', format: 'date-time', nullable: true },
   }, ['id_check', 'id_agendamento', 'status_checkin', 'status_pagamento']),
   AvaliacaoCreate: avaliacaoCreate,
@@ -838,13 +860,15 @@ export const openApiDocument = {
     { name: 'Agendamentos', description: 'Solicitações, estimativa e ciclo do agendamento.' },
     { name: 'Serviços do agendamento', description: 'Itens de serviço registrados nos agendamentos.' },
     { name: 'Check-in e check-out', description: 'Execução, pagamento e conclusão da diária.' },
+    { name: 'Pagamentos', description: 'Mercado Pago: entrada de 50%, saldo de 50%, confirmação e estorno.' },
+    { name: 'Notificações', description: 'Novidades das diárias e leitura por usuário e perfil.' },
     { name: 'Avaliações', description: 'Avaliações após serviços concluídos.' },
     { name: 'Favoritos', description: 'Diaristas favoritas do cliente.' },
     { name: 'Denúncias', description: 'Denúncias entre usuários.' },
     { name: 'Ocorrências', description: 'Ocorrências ligadas a agendamentos.' },
   ],
-  paths: { ...paths, ...chatbotPaths },
-  components: { ...components, schemas: { ...components.schemas, ...chatbotSchemas } },
+  paths: { ...paths, ...chatbotPaths, ...pagamentoPaths, ...notificationPaths },
+  components: { ...components, schemas: { ...components.schemas, ...chatbotSchemas, ...pagamentoSchemas, ...notificationSchemas } },
 };
 
 export default openApiDocument;

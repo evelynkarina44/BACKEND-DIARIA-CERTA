@@ -1,5 +1,6 @@
 // POLLYANA | ETAPAS 1 E 2 — Coordenador: interpretação não é execução livre.
 // Mostrar message() e seus três caminhos; depois confirm() para a ação explícita do cliente.
+// Leitura: message() -> resolveMessage() -> answerQuestion() ou booking.propose() -> saveExchange().
 import prisma from '../../lib/prisma.js';
 import { ChatbotRepository } from '../../repositories/chatbotRepository.js';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../../errors/index.js';
@@ -96,15 +97,31 @@ export class ChatbotService {
       mensagem: input.mensagem, historico: history, estado: previous,
       catalogo: catalog.map((item) => ({ ...item, descricao: item.descricao?.slice(0, 300) })), hoje: localToday(),
     });
-    if (input.selecao) {
-      const requested = input.selecao;
-      for (const [field, type] of [['id_servico', 'servico'], ['id_endereco', 'endereco'], ['id_combo_base', 'combo']]) {
-        if (field in requested && !conversation.estado.opcoes?.some((option) => option.tipo === type && option.id === requested[field])) {
-          throw new BadRequestError('Essa opção não está disponível nesta conversa. Atualize a tela.');
-        }
+    this.validateSelection(input.selecao, conversation.estado.opcoes);
+    const state = mergeRequestState(previous, extraction, input.selecao);
+    const response = await this.resolveMessage({ conversation, input, auth, catalog, history, extraction, state });
+    response.state.opcoes = response.outcome.opcoes || [];
+    await this.saveExchange(conversation, input, response);
+    return this.get(id, auth);
+  }
+
+  validateSelection(selection, options = []) {
+    if (!selection) return;
+    const fields = [
+      ['id_servico', 'servico'],
+      ['id_endereco', 'endereco'],
+      ['id_combo_base', 'combo'],
+    ];
+    for (const [field, type] of fields) {
+      const available = options?.some((option) => option.tipo === type && option.id === selection[field]);
+      if (field in selection && !available) {
+        throw new BadRequestError('Essa opção não está disponível nesta conversa. Atualize a tela.');
       }
     }
-    let state = mergeRequestState(previous, extraction, input.selecao);
+  }
+
+  // Decide a resposta sem gravar no banco. A persistência fica em saveExchange().
+  async resolveMessage({ conversation, input, auth, catalog, history, extraction, state }) {
     let outcome;
     let invalidate = false;
     // POLLYANA | ETAPA 2 — Destacar os caminhos de dúvida, cadastro e proposta.
@@ -113,20 +130,7 @@ export class ChatbotService {
       outcome = { texto: extraction.esclarecimento, opcoes: [] };
     } else if (extraction.intencao === 'duvida') {
       state = { ...conversation.estado };
-      if (extraction.consulta_diarista) {
-        // CAMINHO: profissional específica -> cadastro atual, não RAG. Continuar em ChatbotCatalogService.
-        const reference = 'diarista_consultada' in state ? state.diarista_consultada : conversation.propostas?.[0]?.resumo?.diarista?.id_diarista;
-        const answer = await this.catalog.answer(extraction.consulta_diarista, reference);
-        state.diarista_consultada = answer.diarista_consultada;
-        outcome = { texto: answer.texto, fontes: answer.fontes, opcoes: state.opcoes || [] };
-      } else {
-        // EVELYN | ETAPA 7 — Retrieval: obter contexto para uma dúvida geral.
-        const query = extraction.pergunta_contextualizada || input.mensagem;
-        const context = await this.rag.retrieve(query);
-        // EVELYN | ETAPA 8 — Generation apenas com contexto; ver GeminiService.answer().
-        const answer = context.length ? await this.gemini.answer({ mensagem: input.mensagem, historico: history, contexto: context }) : { resposta: 'Não encontrei essa informação na base de conhecimento do Diária Certa.', fontes: [] };
-        outcome = { texto: answer.resposta, fontes: answer.fontes, opcoes: state.opcoes || [] };
-      }
+      outcome = await this.answerQuestion({ conversation, input, history, extraction, state });
     } else if (extraction.intencao === 'cancelar') {
       state = {};
       invalidate = true;
@@ -144,23 +148,87 @@ export class ChatbotService {
       if (outcome.proposal) state.diarista_consultada = outcome.proposal.resumo.diarista.id_diarista;
       invalidate = true;
     }
-    state.opcoes = outcome.opcoes || [];
+    return { state, outcome, invalidate };
+  }
+
+  async answerQuestion({ conversation, input, history, extraction, state }) {
+    if (extraction.consulta_diarista) {
+      // CAMINHO: profissional específica -> cadastro atual, não RAG. Continuar em ChatbotCatalogService.
+      // Um valor nulo explícito indica que a última busca não encontrou a profissional.
+      // Nesse caso, não reutilizar a diarista de uma proposta anterior.
+      const reference = 'diarista_consultada' in state
+        ? state.diarista_consultada
+        : conversation.propostas?.[0]?.resumo?.diarista?.id_diarista;
+      const answer = await this.catalog.answer(extraction.consulta_diarista, reference);
+      state.diarista_consultada = answer.diarista_consultada;
+      return { texto: answer.texto, fontes: answer.fontes, opcoes: state.opcoes || [] };
+    }
+
+    // EVELYN | ETAPA 7 — Retrieval: obter contexto para uma dúvida geral.
+    const query = extraction.pergunta_contextualizada || input.mensagem;
+    const context = await this.rag.retrieve(query);
+    let answer = {
+      resposta: 'Não encontrei essa informação na base de conhecimento do Diária Certa.',
+      fontes: [],
+    };
+    // EVELYN | ETAPA 8 — Generation apenas com contexto; ver GeminiService.answer().
+    if (context.length) {
+      answer = await this.gemini.answer({ mensagem: input.mensagem, historico: history, contexto: context });
+    }
+    return { texto: answer.resposta, fontes: answer.fontes, opcoes: state.opcoes || [] };
+  }
+
+  // Estado, proposta e mensagens são salvos juntos para não deixar uma conversa incompleta.
+  async saveExchange(conversation, input, { state, outcome, invalidate }) {
+    const id = conversation.id_conversa;
     await this.database.$transaction(async (tx) => {
-      const changed = await tx.chatbot_conversa.updateMany({ where: { id_conversa: id, versao: conversation.versao }, data: { estado: state, versao: { increment: 1 } } });
+      const changed = await tx.chatbot_conversa.updateMany({
+        where: { id_conversa: id, versao: conversation.versao },
+        data: { estado: state, versao: { increment: 1 } },
+      });
       if (!changed.count) throw new ConflictError('A conversa foi atualizada. Recarregue antes de enviar outra mensagem.');
-      if (invalidate) await tx.chatbot_proposta.updateMany({ where: { id_conversa: id, status: 'Pendente' }, data: { status: 'Substituida' } });
+      if (invalidate) {
+        await tx.chatbot_proposta.updateMany({
+          where: { id_conversa: id, status: 'Pendente' },
+          data: { status: 'Substituida' },
+        });
+      }
       // A proposta ocupa o mesmo ponto cronológico da resposta que a apresentou.
       // Milissegundos distintos preservam a ordem usuário → assistente ao recuperar.
       const now = Math.max(Date.now(), ...conversation.mensagens.map((item) => new Date(item.criado_em).getTime() + 2));
       if (outcome.proposal) {
         const proposal = outcome.proposal;
         // APOIO | PESSOA 3 | ETAPA 6 — Proposta tem validade de 10 minutos, sem agendamento automático.
-        await tx.chatbot_proposta.create({ data: { id_conversa: id, payload: proposal.payload, resumo: proposal.resumo, assinatura: proposal.assinatura, criado_em: new Date(now + 1), expira_em: new Date(Date.now() + 10 * 60 * 1000) } });
+        await tx.chatbot_proposta.create({
+          data: {
+            id_conversa: id,
+            payload: proposal.payload,
+            resumo: proposal.resumo,
+            assinatura: proposal.assinatura,
+            criado_em: new Date(now + 1),
+            expira_em: new Date(Date.now() + 10 * 60 * 1000),
+          },
+        });
       }
-      await tx.chatbot_mensagem.create({ data: { id_conversa: id, id_requisicao: input.id_requisicao, papel: 'user', conteudo: input.mensagem, criado_em: new Date(now) } });
-      await tx.chatbot_mensagem.create({ data: { id_conversa: id, papel: 'assistant', conteudo: outcome.texto, ...(outcome.fontes ? { fontes: outcome.fontes } : {}), criado_em: new Date(now + 1) } });
+      await tx.chatbot_mensagem.create({
+        data: {
+          id_conversa: id,
+          id_requisicao: input.id_requisicao,
+          papel: 'user',
+          conteudo: input.mensagem,
+          criado_em: new Date(now),
+        },
+      });
+      await tx.chatbot_mensagem.create({
+        data: {
+          id_conversa: id,
+          papel: 'assistant',
+          conteudo: outcome.texto,
+          ...(outcome.fontes ? { fontes: outcome.fontes } : {}),
+          criado_em: new Date(now + 1),
+        },
+      });
     });
-    return this.get(id, auth);
   }
 
   async proposalOwner(id, auth) {
