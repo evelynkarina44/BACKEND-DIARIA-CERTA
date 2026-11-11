@@ -364,6 +364,29 @@ addCrud({
   },
 });
 
+paths['/api/disponibilidade/mensal'] = {
+  put: {
+    tags: ['Disponibilidade'],
+    summary: 'Salvar alterações da agenda mensal',
+    operationId: 'salvarAgendaMensal',
+    description: 'Substitui os dias futuros do mês da diarista autenticada em uma transação, preservando os horários que não mudaram. Não permite remover horários de diárias aceitas ou em andamento. Listas vazias removem disponibilidades livres.',
+    security: bearerSecurity,
+    requestBody: { required: true, content: json({
+      type: 'object', additionalProperties: false, required: ['mes', 'dias', 'horarios'],
+      properties: {
+        mes: { type: 'string', pattern: '^\\d{4}-(0[1-9]|1[0-2])$' },
+        dias: { type: 'array', maxItems: 31, uniqueItems: true, items: { type: 'string', format: 'date' } },
+        horarios: { type: 'array', maxItems: 23, uniqueItems: true, items: { type: 'string', pattern: '^([01]\\d|2[0-2]):[0-5]\\d$' } },
+      },
+    }) },
+    responses: {
+      '200': successResponse('Agenda mensal atualizada.', { type: 'array', items: schemaRef('Disponibilidade') }),
+      '400': { description: 'Dias anteriores a hoje não podem ser alterados.' },
+      ...standardErrors({ authenticated: true, forbidden: true, conflict: true }),
+    },
+  },
+};
+
 paths['/api/agendamento'] = {
   get: {
     tags: ['Agendamentos'],

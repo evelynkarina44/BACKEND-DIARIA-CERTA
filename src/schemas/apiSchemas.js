@@ -178,6 +178,26 @@ const validTimeRange = (data) => !data.horario_inicio || !data.horario_fim || da
 export const createDisponibilidadeSchema = z.object(availabilityFields).refine(validTimeRange, { message: 'O horário final deve ser posterior ao inicial' });
 export const updateDisponibilidadeSchema = z.object(availabilityFields).omit({ id_diarista: true }).partial().refine(validTimeRange, { message: 'O horário final deve ser posterior ao inicial' });
 
+export const saveMonthlyAvailabilitySchema = z.object({
+  mes: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
+  dias: z.array(dateOnly).max(31),
+  horarios: z.array(z.string().regex(/^([01]\d|2[0-2]):[0-5]\d$/)).max(23),
+}).strict().superRefine((data, ctx) => {
+  // Uma data inválida já tem seu erro no schema; não executar a transformação nela.
+  if (data.dias.some((day) => !(day instanceof Date))) return;
+  const dates = data.dias.map((day) => day.toISOString().slice(0, 10));
+  if (dates.some((day) => !day.startsWith(`${data.mes}-`))) {
+    ctx.addIssue({ code: 'custom', path: ['dias'], message: 'Todos os dias devem pertencer ao mês selecionado.' });
+  }
+  if (new Set(dates).size !== dates.length) {
+    ctx.addIssue({ code: 'custom', path: ['dias'], message: 'Não repita dias na agenda.' });
+  }
+  const minutes = data.horarios.map((time) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3))).sort((a, b) => a - b);
+  if (minutes.some((time, index) => index > 0 && time - minutes[index - 1] < 60)) {
+    ctx.addIssue({ code: 'custom', path: ['horarios'], message: 'Mantenha pelo menos 1 hora entre os horários de início.' });
+  }
+});
+
 export const createFavoritoSchema = z.object({ id_diarista: positiveId });
 
 export const createDenunciaSchema = z.object({
