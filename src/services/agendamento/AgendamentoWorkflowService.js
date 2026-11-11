@@ -12,6 +12,10 @@ const agendamentoInclude = {
   endereco: true,
   agendamento_servico: { include: { diarista_servico: { include: { servico: true } } } },
   checkin_checkout: true,
+  avaliacao: {
+    where: { autor_tipo: 'Cliente' },
+    select: { id_avaliacao: true, autor_tipo: true, nota: true, comentario: true, data_avaliacao: true, anonima: true },
+  },
   ocorrencia_agendamento: { orderBy: { data_ocorrencia: 'desc' } },
 };
 
@@ -25,6 +29,7 @@ function present(appointment) {
     valor_estimado: appointment.valor_estimado === null ? null : Number(appointment.valor_estimado),
     combo_base: appointment.combo_base ? { ...appointment.combo_base, valor_base: Number(appointment.combo_base.valor_base) } : null,
     agendamento_servico: appointment.agendamento_servico?.map((item) => ({ ...item, preco: Number(item.preco) })) ?? [],
+    avaliacao: appointment.avaliacao?.map((review) => ({ ...review, nota: Number(review.nota) })) ?? [],
   };
 }
 

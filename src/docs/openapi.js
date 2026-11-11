@@ -840,7 +840,16 @@ components.schemas = {
     valor_estimado: { type: 'number', nullable: true }, observacoes: nullableString(2000), status: schemaRef('AgendamentoStatus'),
     solicitado_em: { type: 'string', format: 'date-time' }, expira_em: { type: 'string', format: 'date-time', nullable: true },
     respondido_em: { type: 'string', format: 'date-time', nullable: true }, concluido_em: { type: 'string', format: 'date-time', nullable: true },
+    avaliacao: { type: 'array', description: 'Avaliação recebida do cliente nesta diária. Somente participantes autenticados acessam o agendamento, inclusive comentários não públicos.', items: schemaRef('AgendamentoAvaliacao') },
   }, ['id_agendamento', 'id_cliente', 'id_diarista', 'data_agendamento', 'status'], { additionalProperties: true }),
+  AgendamentoAvaliacao: objectSchema({
+    id_avaliacao: positiveInteger,
+    autor_tipo: { type: 'string', enum: ['Cliente'] },
+    nota: { type: 'number', minimum: 0, maximum: 5 },
+    comentario: nullableString(2000),
+    data_avaliacao: { type: 'string', format: 'date-time' },
+    anonima: { type: 'boolean' },
+  }, ['id_avaliacao', 'autor_tipo', 'nota', 'anonima']),
   AgendamentoEstimativa: objectSchema({
     valor_estimado: { type: 'number', minimum: 0 }, combo_aplicado: { type: 'integer', nullable: true }, expira_em_horas: { type: 'integer', enum: [48] },
   }, ['valor_estimado', 'combo_aplicado', 'expira_em_horas']),
