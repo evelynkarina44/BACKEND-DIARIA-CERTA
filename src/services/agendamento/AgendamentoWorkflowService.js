@@ -3,7 +3,7 @@
 import prisma from '../../lib/prisma.js';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../../errors/index.js';
 import { combineDateAndTime, currentLocalDate } from '../../utils/dateTime.js';
-import { findBookingConflict, lockDiarista } from './availabilityPolicy.js';
+import { findBookingConflict, findDuplicateRequest, lockDiarista } from './availabilityPolicy.js';
 
 const agendamentoInclude = {
   cliente: { include: { usuario: { select: { nome: true, foto_perfil: true, telefone: true } } } },
@@ -129,11 +129,16 @@ export class AgendamentoWorkflowService {
 
   // APOIO POLLYANA | ETAPA 6 — Criação validada; o status inicial Pendente vem do schema Prisma.
   async create(data, auth, inTransaction = false) {
+    if (!auth?.id_cliente) throw new ForbiddenError('É necessário um perfil de cliente');
     if (!inTransaction) {
       return this.database.$transaction(async (tx) => {
         await lockDiarista(tx, data.id_diarista);
         return new AgendamentoWorkflowService(tx).create(data, auth, true);
       }, { isolationLevel: 'ReadCommitted' });
+    }
+    const duplicate = await findDuplicateRequest(this.database, data, auth.id_cliente);
+    if (duplicate) {
+      throw new ConflictError('Você já possui uma solicitação para esta diarista nessa data e horário. Acompanhe o pedido em Minhas diárias, sem enviar outra solicitação.');
     }
     const pricing = await this.validateAndPrice(data, auth);
     const expira_em = new Date(Date.now() + 48 * 60 * 60 * 1000);

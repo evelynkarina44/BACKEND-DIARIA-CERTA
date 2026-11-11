@@ -80,7 +80,7 @@ test('payload inválido retorna detalhes 422 antes de acessar o banco', async ()
   });
   assert.equal(response.status, 422);
   const body = await response.json();
-  assert.equal(body.error, 'Validation failed');
+  assert.equal(body.error, 'Confira os campos informados.');
   assert.ok(body.details.fieldErrors.email);
 });
 

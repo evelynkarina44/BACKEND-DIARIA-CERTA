@@ -15,7 +15,9 @@ export class UpdateUsuarioService {
     }
     if (changes.cpf) {
       const existing = await this.repository.findByCpf(changes.cpf);
-      if (existing && existing.id_usuario !== Number(id_usuario)) throw new ConflictError('CPF já cadastrado');
+      if (existing && existing.id_usuario !== Number(id_usuario)) {
+        throw new ConflictError('CPF já cadastrado', { fieldErrors: { cpf: ['Este CPF já está cadastrado em outra conta.'] } });
+      }
     }
     if (changes.senha) changes.senha = await bcrypt.hash(changes.senha, 12);
     return this.repository.update(id_usuario, changes, { select: usuarioPublicSelect });

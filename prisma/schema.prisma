@@ -302,7 +302,7 @@ model usuario {
   ativo                                             Boolean      @default(true)
   atualizado_em                                     DateTime     @default(now()) @updatedAt @db.Timestamp(0)
   bloqueado                                         Boolean      @default(false)
-  cpf                                               String?      @db.Char(11)
+  cpf                                               String?      @unique(map: "cpf") @db.Char(11)
   tipo                                              usuario_tipo @default(CLIENTE)
   cliente                                           cliente[]
   denuncia_denuncia_id_usuario_denunciadoTousuario  denuncia[]   @relation("denuncia_id_usuario_denunciadoTousuario")

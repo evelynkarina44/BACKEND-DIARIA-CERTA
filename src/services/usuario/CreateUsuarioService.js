@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { UserRepository } from '../../repositories/userRepository.js';
-import { ConflictError } from '../../errors/index.js';
+import { CheckUsuarioAvailabilityService } from './CheckUsuarioAvailabilityService.js';
 import { usuarioPublicSelect } from './usuarioSelect.js';
 
 export class CreateUsuarioService {
@@ -10,12 +10,7 @@ export class CreateUsuarioService {
 
   async execute(data) {
     const email = data.email.toLowerCase();
-    if (await this.repository.findByEmail(email)) {
-      throw new ConflictError('E-mail já cadastrado');
-    }
-    if (data.cpf && await this.repository.findByCpf(data.cpf)) {
-      throw new ConflictError('CPF já cadastrado');
-    }
+    await new CheckUsuarioAvailabilityService(this.repository).execute({ email, cpf: data.cpf });
     return this.repository.create({
       ...data,
       email,

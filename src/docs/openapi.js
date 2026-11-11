@@ -239,6 +239,22 @@ paths['/api/auth/select-profile'] = {
   },
 };
 
+paths['/api/usuario/validar-cadastro'] = {
+  post: {
+    tags: ['Usuários'], summary: 'Verifica CPF/e-mail antes de avançar no cadastro', operationId: 'verificarDisponibilidadeCadastro',
+    description: 'Consulta pública com limite de tentativas, sem retornar dados pessoais. Não reserva os dados: a criação da conta verifica novamente.',
+    requestBody: { required: true, content: { 'application/json': { schema: {
+      type: 'object', minProperties: 1, additionalProperties: false,
+      properties: { cpf: { type: 'string', pattern: '^\\d{11}$' }, email: { type: 'string', format: 'email', maxLength: 100 } },
+    } } } },
+    responses: {
+      '200': { description: 'Dados disponíveis.', content: { 'application/json': { schema: { type: 'object', properties: { disponivel: { type: 'boolean' } }, required: ['disponivel'] } } } },
+      '409': { description: 'CPF ou e-mail já cadastrado; details.fieldErrors identifica o campo.' },
+      '422': { description: 'Dados inválidos.' }, '429': { description: 'Limite de consultas excedido.' },
+    },
+  },
+};
+
 addCrud({
   base: '/api/usuario', tag: 'Usuários', singular: 'usuário', plural: 'usuários', resource: 'Usuario',
   createSchema: 'UsuarioCreate', updateSchema: 'UsuarioUpdate', paginated: true,
@@ -368,7 +384,7 @@ paths['/api/agendamento'] = {
   post: {
     tags: ['Agendamentos'],
     summary: 'Criar agendamento',
-    description: 'Cria uma solicitação com validade de 48 horas. O cliente, o preço e os serviços são validados pelo backend.',
+    description: 'Cria uma solicitação com validade de 48 horas. O cliente, o preço e os serviços são validados pelo backend. Retorna 409 se o mesmo cliente já possui uma solicitação pendente não expirada, aceita ou em andamento para a mesma diarista, data e horário de início, independentemente dos serviços. Solicitações recusadas, canceladas ou expiradas não impedem novo envio.',
     operationId: 'criarAgendamento',
     security: bearerSecurity,
     requestBody: requestBody('AgendamentoCreate'),
@@ -594,7 +610,7 @@ const enderecoCadastro = objectSchema({
 
 const clienteCreate = objectSchema({
   id_usuario: positiveInteger,
-  data_nascimento: date,
+  data_nascimento: { ...date, description: 'Data existente, não futura, de pessoa com pelo menos 18 anos completos. Referência: data atual em America/Sao_Paulo.' },
   qtd_comodos: { type: 'integer', minimum: 1, maximum: 100 },
   tamanho_casa: { type: 'string', enum: ['pequena', 'media', 'grande'] },
   endereco: enderecoCadastro,

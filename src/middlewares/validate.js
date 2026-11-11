@@ -7,7 +7,7 @@ export function validate(schema, source = "body") {
         if(!result.success) {
             return next(
                 new ValidationError(
-                    "Validation failed",
+                    "Confira os campos informados.",
                     result.error.flatten()
                 )
             );

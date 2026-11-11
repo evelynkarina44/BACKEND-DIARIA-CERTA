@@ -27,3 +27,21 @@ export async function findBookingConflict(database, data, excludeId) {
 export async function lockDiarista(database, id) {
   await database.$queryRaw`SELECT id_diarista FROM diarista WHERE id_diarista = ${Number(id)} FOR UPDATE`;
 }
+
+export async function findDuplicateRequest(database, data, idCliente) {
+  // Consultar depois da trava da diarista: dois envios simultâneos não passam juntos.
+  // Compare apenas TIME em JavaScript, evitando a coerção DATE + TIME do MySQL.
+  const appointments = await database.agendamento.findMany({
+    where: {
+      id_cliente: idCliente,
+      id_diarista: data.id_diarista,
+      data_agendamento: data.data_agendamento,
+      OR: [
+        { status: { in: ['Aceito', 'Em_andamento'] } },
+        { status: 'Pendente', OR: [{ expira_em: null }, { expira_em: { gt: new Date() } }] },
+      ],
+    },
+    select: { id_agendamento: true, horario_inicio: true },
+  });
+  return appointments.find((item) => item.horario_inicio && seconds(item.horario_inicio) === seconds(data.horario_inicio));
+}

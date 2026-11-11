@@ -130,7 +130,11 @@ test('MySQL real: proposta, confirmação idempotente, alteração, expiração 
       // O aceite real passa pelas travas e pela política compartilhada de conflitos.
       const professionalAuth = { id_usuario: professionalUser.id_usuario, id_diarista: professional.id_diarista, activeProfile: 'DIARISTA' };
       const workflow = new AgendamentoWorkflowService(database);
-      const repeatedPending = await workflow.create(createAgendamentoSchema.parse((await tx.chatbot_proposta.findUnique({ where: { id_proposta: quoted.proposta.id_proposta } })).payload), auth, true);
+      const repeatedPayload = createAgendamentoSchema.parse((await tx.chatbot_proposta.findUnique({ where: { id_proposta: quoted.proposta.id_proposta } })).payload);
+      await assert.rejects(() => workflow.create(repeatedPayload, auth, true), /já possui uma solicitação/);
+      // Outro cliente ainda pode concorrer pelo horário enquanto não houver aceite.
+      const otherAddress = await tx.endereco.create({ data: { ...address, id_cliente: otherCustomer.id_cliente } });
+      const repeatedPending = await workflow.create({ ...repeatedPayload, id_endereco: otherAddress.id_endereco }, otherAuth, true);
       await workflow.accept(appointment.id_agendamento, professionalAuth);
       await assert.rejects(() => workflow.accept(repeatedPending.id_agendamento, professionalAuth), /agendamento aceito/);
       const unavailable = await ask((await start()).id_conversa);

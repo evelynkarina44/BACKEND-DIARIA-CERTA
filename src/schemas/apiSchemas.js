@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { getBirthDateError } from '../utils/birthDate.js';
 
 const positiveId = z.coerce.number().int().positive();
 const money = z.coerce.number().positive().max(999999.99).refine(
@@ -46,15 +47,19 @@ function isValidCpf(value) {
 }
 
 const usuarioFields = {
-  nome: z.string().trim().min(3).max(100),
-  email: z.string().trim().email().max(100).transform((value) => value.toLowerCase()),
-  senha: z.string().min(8).max(100),
-  telefone: z.string().trim().min(10).max(20),
+  nome: z.string().trim().min(3, 'Informe pelo menos 3 caracteres.').max(100, 'Use no máximo 100 caracteres.'),
+  email: z.string().trim().email('Informe um e-mail válido.').max(100, 'Use no máximo 100 caracteres.').transform((value) => value.toLowerCase()),
+  senha: z.string().min(8, 'A senha deve ter pelo menos 8 caracteres.').max(100, 'A senha deve ter no máximo 100 caracteres.'),
+  telefone: z.string().trim().min(10, 'Informe o telefone com DDD.').max(20, 'Use no máximo 20 caracteres.'),
   foto_perfil: z.union([z.string().url().max(255), z.literal('')]).default(''),
   cpf: z.string().trim().regex(/^\d{11}$/).refine(isValidCpf, 'CPF inválido').nullable().optional(),
   tipo: z.enum(['CLIENTE', 'DIARISTA']).default('CLIENTE'),
 };
 export const createUsuarioSchema = z.object(usuarioFields);
+export const checkRegistrationSchema = z.object({
+  cpf: z.string().trim().regex(/^\d{11}$/, 'Informe os 11 números do CPF.').refine(isValidCpf, 'CPF inválido. Verifique os números digitados.').optional(),
+  email: usuarioFields.email.optional(),
+}).strict().refine((data) => Boolean(data.cpf || data.email), 'Informe o CPF ou o e-mail para verificar.');
 export const updateUsuarioSchema = z.object(usuarioFields).omit({ tipo: true }).partial().refine((data) => Object.keys(data).length > 0, 'Informe ao menos um campo');
 
 const enderecoCadastroFields = {
@@ -69,9 +74,14 @@ const enderecoCadastroFields = {
 };
 const enderecoCadastroSchema = z.object(enderecoCadastroFields);
 
+const birthDate = z.string({ error: 'Informe uma data de nascimento válida.' }).superRefine((value, context) => {
+  const message = getBirthDateError(value);
+  if (message) context.addIssue({ code: 'custom', message });
+}).transform((value) => new Date(`${value}T00:00:00.000Z`));
+
 const clienteFields = {
   id_usuario: positiveId,
-  data_nascimento: dateOnly,
+  data_nascimento: birthDate,
   qtd_comodos: z.coerce.number().int().positive().max(100),
   tamanho_casa: z.enum(['pequena', 'media', 'grande']),
 };

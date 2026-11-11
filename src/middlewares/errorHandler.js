@@ -26,6 +26,22 @@ export function errorHandler(error, req, res, _next) {
   }
 
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    // O índice único é a proteção final quando duas requisições passam pela
+    // consulta antecipada ao mesmo tempo. Não expor detalhes internos do Prisma.
+    const usuario = String(error.meta?.modelName ?? '').toLowerCase() === 'usuario'
+      || /^\/api\/usuario(?:\/|$)/.test(req.originalUrl ?? '');
+    const target = Array.isArray(error.meta?.target) ? error.meta.target.join(' ') : String(error.meta?.target ?? '');
+    if (error.code === 'P2002' && usuario) {
+      const field = /(?:^|[_.\s`])cpf(?:$|[_.\s`])/i.test(target) ? 'cpf'
+        : /(?:^|[_.\s`])email(?:$|[_.\s`])/i.test(target) ? 'email' : null;
+      if (field) {
+        const label = field === 'cpf' ? 'CPF' : 'E-mail';
+        return res.status(409).json({
+          error: `${label} já cadastrado`,
+          details: { fieldErrors: { [field]: [`Este ${label} já possui uma conta. Entre na conta existente.`] } },
+        });
+      }
+    }
     const prismaErrors = {
       P2002: [409, 'Registro duplicado'],
       P2003: [409, 'Operação impedida por um relacionamento existente'],
