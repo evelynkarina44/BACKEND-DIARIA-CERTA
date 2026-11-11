@@ -5,6 +5,8 @@ import { currentLocalDate } from '../../utils/dateTime.js';
 import { calculateDistanceKm, coordinatesByCep } from '../location/CepGeocodingService.js';
 import { ExternalServiceError } from '../../errors/index.js';
 import { intervalsOverlap } from '../agendamento/availabilityPolicy.js';
+import { responseHistoryInclude, respondsQuickly } from './responseSpeedPolicy.js';
+import { serviceSearchTerms } from '../../utils/serviceSearchTerms.js';
 
 function bookingProfileWhere({ serviceIds, userId, comboId }) {
   return {
@@ -19,6 +21,7 @@ function publicProfileInclude() {
   const today = currentLocalDate();
   return {
   usuario: { select: { nome: true, foto_perfil: true } },
+  agendamento: responseHistoryInclude,
   endereco: { select: { bairro: true, cidade: true, estado: true, cep: true } },
   diarista_servico: {
     where: { ativo: true },
@@ -60,11 +63,13 @@ function publicProfileInclude() {
 }
 
 function present(profile, serviceCatalog = [], distanceKm = null) {
+  const { agendamento: responseHistory, ...publicProfile } = profile;
   const prices = profile.diarista_servico.map((item) => Number(item.preco));
   const offeredServiceIds = new Set(profile.diarista_servico.map((item) => item.id_servico));
   const publicAddresses = profile.endereco.map(({ cep: _cep, ...address }) => address);
   return {
-    ...profile,
+    ...publicProfile,
+    responde_rapido: respondsQuickly(responseHistory),
     endereco: publicAddresses,
     distancia_km: Number.isFinite(distanceKm) ? Number(distanceKm.toFixed(2)) : null,
     avaliacao_media: profile.avaliacao_media === null ? null : Number(profile.avaliacao_media),
@@ -160,9 +165,10 @@ export class DiaristaSearchService {
     return { profiles, ownProfile };
   }
 
-  async list({ page = 1, limit = 20, nome, bairro, cidade, estado, avaliacao_min, preco_min, preco_max, id_servico, cep_origem, distancia_max, ordenar = 'avaliacao' } = {}) {
+  async list({ page = 1, limit = 20, nome, bairro, cidade, estado, avaliacao_min, preco_min, preco_max, id_servico, servico_nome, cep_origem, distancia_max, responde_rapido, ordenar = 'avaliacao' } = {}) {
     const serviceFilter = {};
     if (id_servico) serviceFilter.id_servico = id_servico;
+    const serviceTerms = serviceSearchTerms(servico_nome);
     if (preco_min !== undefined || preco_max !== undefined) {
       serviceFilter.preco = { ...(preco_min !== undefined ? { gte: preco_min } : {}), ...(preco_max !== undefined ? { lte: preco_max } : {}) };
     }
@@ -171,7 +177,11 @@ export class DiaristaSearchService {
       usuario: { ativo: true, bloqueado: false, ...(nome ? { nome: { contains: nome } } : {}) },
       ...(avaliacao_min !== undefined ? { avaliacao_media: { gte: avaliacao_min } } : {}),
       ...(bairro || cidade || estado ? { endereco: { some: { ...(bairro ? { bairro: { contains: bairro } } : {}), ...(cidade ? { cidade: { contains: cidade } } : {}), ...(estado ? { estado } : {}) } } } : {}),
-      ...(Object.keys(serviceFilter).length ? { diarista_servico: { some: serviceFilter } } : {}),
+      ...(serviceTerms.length ? {
+        AND: serviceTerms.map((term) => ({
+          diarista_servico: { some: { ...serviceFilter, ativo: true, servico: { nome_servico: { contains: term } } } },
+        })),
+      } : Object.keys(serviceFilter).length ? { diarista_servico: { some: { ...serviceFilter, ativo: true } } } : {}),
     };
 
     const [rawProfiles, serviceCatalog] = await Promise.all([
@@ -192,6 +202,7 @@ export class DiaristaSearchService {
     if (distancia_max !== undefined) {
       profiles = profiles.filter((profile) => profile.distancia_km !== null && profile.distancia_km <= distancia_max);
     }
+    if (responde_rapido === true) profiles = profiles.filter((profile) => profile.responde_rapido);
     const sorters = {
       avaliacao: (a, b) => (b.avaliacao_media ?? -1) - (a.avaliacao_media ?? -1),
       preco_asc: (a, b) => (a.valor_medio_diaria ?? Infinity) - (b.valor_medio_diaria ?? Infinity),

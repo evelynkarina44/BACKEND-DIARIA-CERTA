@@ -1,5 +1,6 @@
 import { FavoritoRepository } from '../../repositories/favoritoRepository.js';
 import { ForbiddenError } from '../../errors/index.js';
+import { responseHistoryInclude, respondsQuickly } from '../diarista/responseSpeedPolicy.js';
 
 export class ListFavoritoService {
   constructor(repository = new FavoritoRepository()) { this.repository = repository; }
@@ -13,6 +14,7 @@ export class ListFavoritoService {
           diarista: {
             include: {
               usuario: { select: { nome: true, foto_perfil: true } },
+              agendamento: responseHistoryInclude,
               endereco: { select: { bairro: true, cidade: true, estado: true } },
               diarista_servico: { include: { servico: true } },
               avaliacao: {
@@ -27,6 +29,11 @@ export class ListFavoritoService {
       }),
       this.repository.count(where),
     ]);
-    return { data, pagination: { page, limit, total, pages: Math.ceil(total / limit) } };
+    const presented = data.map((favorite) => {
+      if (!favorite.diarista) return favorite;
+      const { agendamento, ...profile } = favorite.diarista;
+      return { ...favorite, diarista: { ...profile, responde_rapido: respondsQuickly(agendamento) } };
+    });
+    return { data: presented, pagination: { page, limit, total, pages: Math.ceil(total / limit) } };
   }
 }

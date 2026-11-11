@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { getBirthDateError } from '../utils/birthDate.js';
+import { serviceSearchTerms } from '../utils/serviceSearchTerms.js';
 
 const positiveId = z.coerce.number().int().positive();
 const money = z.coerce.number().positive().max(999999.99).refine(
@@ -254,6 +255,10 @@ export const updateAvaliacaoSchema = z.object({
 }).refine((data) => Object.keys(data).length > 0, 'Informe ao menos um campo');
 
 export const diaristaSearchSchema = paginationSchema.extend({
+  servico_nome: z.string().trim().max(1000, 'Use no máximo 1000 caracteres para buscar serviços.')
+    .refine((value) => serviceSearchTerms(value).length <= 10, 'Busque no máximo 10 serviços por vez.')
+    .refine((value) => serviceSearchTerms(value).every((term) => term.length <= 100), 'Use no máximo 100 caracteres por serviço.').optional(),
+  responde_rapido: z.union([z.boolean(), z.enum(['true', 'false']).transform((value) => value === 'true')]).optional(),
   nome: z.string().trim().max(100).optional(),
   bairro: z.string().trim().max(100).optional(),
   cidade: z.string().trim().max(100).optional(),

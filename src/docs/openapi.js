@@ -287,6 +287,7 @@ addCrud({
 
 paths['/api/diarista'].get.parameters = [
   ...paginationParameters,
+  { name: 'responde_rapido', in: 'query', description: 'Se true, mostra somente quem respondeu todas as solicitações consideradas em até 24 horas, com ao menos um aceite ou recusa. Pedidos pendentes acima de 24h e expirados impedem o selo; cancelados não contam.', schema: { type: 'boolean' } },
   { name: 'nome', in: 'query', schema: { type: 'string', maxLength: 100 } },
   { name: 'bairro', in: 'query', schema: { type: 'string', maxLength: 100 } },
   { name: 'cidade', in: 'query', schema: { type: 'string', maxLength: 100 } },
@@ -295,6 +296,7 @@ paths['/api/diarista'].get.parameters = [
   { name: 'preco_min', in: 'query', schema: { type: 'number', minimum: 0 } },
   { name: 'preco_max', in: 'query', schema: { type: 'number', minimum: 0 } },
   { name: 'id_servico', in: 'query', schema: { type: 'integer', minimum: 1 } },
+  { name: 'servico_nome', in: 'query', description: 'Até 10 nomes ou partes de nomes separados por vírgula, ponto e vírgula ou quebra de linha. A diarista deve oferecer TODOS os serviços como ativos. Até 100 caracteres por termo; repetições são ignoradas.', schema: { type: 'string', maxLength: 1000 } },
   { name: 'cep_origem', in: 'query', description: 'CEP do cliente usado como origem do cálculo de distância.', schema: { type: 'string', pattern: '^\\d{5}-?\\d{3}$' } },
   { name: 'distancia_max', in: 'query', description: 'Distância máxima em quilômetros. Exige cep_origem.', schema: { type: 'number', minimum: 0, exclusiveMinimum: true, maximum: 5000 } },
   { name: 'ordenar', in: 'query', schema: { type: 'string', enum: ['avaliacao', 'preco_asc', 'preco_desc', 'nome', 'distancia'], default: 'avaliacao' } },
@@ -803,6 +805,7 @@ components.schemas = {
   DiaristaCreate: diaristaCreate,
   DiaristaUpdate: partialSchema(diaristaCreate, ['id_usuario', 'endereco', 'servicos', 'combo_base']),
   Diarista: objectSchema({
+    responde_rapido: { type: 'boolean', description: 'Calculado pelo histórico real de respostas, não por frequencia_resposta.' },
     id_diarista: positiveInteger, ...diaristaCreate.properties, avaliacao_media: { type: 'number', nullable: true }, valor_medio_diaria: { type: 'number', nullable: true }, distancia_km: { type: 'number', minimum: 0, nullable: true },
   }, ['id_diarista', 'id_usuario', 'descricao', 'qtd_max_comodos'], { additionalProperties: true }),
   DiaristaEstatisticas: objectSchema({
