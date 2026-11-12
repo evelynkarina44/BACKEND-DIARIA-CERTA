@@ -1,11 +1,13 @@
 import { createHash } from 'node:crypto';
 import { combineDateAndTime } from '../../utils/dateTime.js';
+import { checkinExpired, checkinDeadline } from '../agendamento/checkinExpirationPolicy.js';
 
 // Um ID por evento de negócio: consultas e webhooks repetidos não recriam avisos.
 export function notificationEvents(a, profile, now = new Date()) {
   const customer = profile === 'CLIENTE';
   const reference = 'Diária #' + a.id_agendamento + ' de ' + a.data_agendamento.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
   const events = [];
+  const expiredCheckin = checkinExpired(a, now);
   const target = customer ? 'pagamento' : 'diaria';
   function add(kind, title, message, date, action = target) {
     if (!date) return;
@@ -21,7 +23,8 @@ export function notificationEvents(a, profile, now = new Date()) {
   if (['Aceito', 'Em_andamento', 'Concluido'].includes(a.status)) add('aceite', 'Solicitação aceita',
     customer ? 'A entrada de 50% já pode ser paga.' : 'Aguarde o pagamento da entrada pelo cliente.', a.respondido_em);
   const ending = { Recusado: 'Solicitação recusada', Cancelado: 'Agendamento cancelado', Expirado: 'Solicitação expirada' };
-  if (ending[a.status]) add(a.status.toLowerCase(), ending[a.status], 'Consulte a situação do agendamento.', a.respondido_em);
+  if (expiredCheckin) add('checkin-expirado', 'Check-in expirado', 'A diária não foi iniciada em até 30 minutos. Se a entrada foi paga, será solicitado o estorno integral.', checkinDeadline(a));
+  else if (ending[a.status]) add(a.status.toLowerCase(), ending[a.status], 'Consulte a situação do agendamento.', a.respondido_em);
   const parts = a.pagamento_parcela ?? [];
   const entryPaid = parts.some(p => p.fase === 'Entrada' && p.status === 'Pago');
   const fullyPaid = ['Entrada', 'Saldo'].every(phase => parts.some(p => p.fase === phase && p.status === 'Pago'));
@@ -42,7 +45,7 @@ export function notificationEvents(a, profile, now = new Date()) {
   const check = a.checkin_checkout?.[0];
   add('checkin', 'Check-in realizado', 'A diarista registrou o início do serviço.', check?.horario_checkin);
   add('checkout', 'Diária finalizada', customer ? 'A diarista registrou o checkout. Consulte o pagamento dos 50% restantes.' : 'Checkout registrado. Aguarde o cliente pagar o saldo.', check?.horario_checkout);
-  if (a.status === 'Aceito' && entryPaid && a.horario_inicio) add('horario-checkin',
+  if (!expiredCheckin && a.status === 'Aceito' && entryPaid && a.horario_inicio) add('horario-checkin',
     customer ? 'Horário da sua diária' : 'Hora de realizar o check-in',
     customer ? 'Aguarde o registro de início pela diarista.' : 'A entrada está paga. Abra a diária para registrar o início.',
     combineDateAndTime(a.data_agendamento, a.horario_inicio));

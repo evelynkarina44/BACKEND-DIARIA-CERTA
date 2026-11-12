@@ -48,7 +48,8 @@ test('não inventa aprovação por existir checkout e não antecipa lembrete de 
   f.appointment.status = 'Aceito'; f.appointment.checkin_checkout = [];
   const before = new Date('2026-11-01T10:59:59Z');
   assert.equal(notificationEvents(f.appointment, 'DIARISTA', before).some(e => e.tipo === 'horario-checkin'), false);
-  assert.equal(notificationEvents(f.appointment, 'DIARISTA', now).some(e => e.tipo === 'horario-checkin'), true);
+  assert.equal(notificationEvents(f.appointment, 'DIARISTA', new Date('2026-11-01T11:05:00Z')).some(e => e.tipo === 'horario-checkin'), true);
+  assert.equal(notificationEvents(f.appointment, 'DIARISTA', now).some(e => e.tipo === 'checkin-expirado'), true);
 });
 
 test('leitura persiste por usuário e perfil; marcar todas não afeta outra pessoa', async () => {

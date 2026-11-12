@@ -445,6 +445,7 @@ paths['/api/agendamento/acompanhamento'] = {
         data: { type: 'array', items: { type: 'object', properties: {
           id_agendamento: { type: 'integer' }, status: schemaRef('AgendamentoStatus'),
           inicio_em: { type: 'string', format: 'date-time', nullable: true },
+          checkin_expirado: { type: 'boolean' }, checkin_limite_em: { type: 'string', format: 'date-time', nullable: true },
           pessoa: { type: 'object', nullable: true, properties: { nome: { type: 'string' }, foto_perfil: { type: 'string', nullable: true } } },
           pagamento: { allOf: [schemaRef('PagamentoResumo')], nullable: true },
         } } },
@@ -513,7 +514,7 @@ paths['/api/checkin-checkout/agendamento/{id}'] = {
 };
 
 for (const action of [
-  { path: 'solicitar', summary: 'Realizar check-in', operationId: 'solicitarCheckin', description: 'A diarista registra o início a partir do horário agendado, com entrada paga e agendamento aceito. Registra horario_checkin e altera o agendamento para Em_andamento sem exigir confirmação adicional do cliente. Não cobra nem aprova pagamentos.' },
+  { path: 'solicitar', summary: 'Realizar check-in', operationId: 'solicitarCheckin', description: 'A diarista registra o início a partir do horário agendado e antes do limite de 30 minutos, com entrada paga e agendamento aceito. No limite ou após ele, sem início, o agendamento expira e a entrada aprovada entra na fila de estorno integral. Registra horario_checkin e altera para Em_andamento sem exigir confirmação adicional do cliente. Não cobra nem aprova pagamentos.' },
   { path: 'confirmar-pagamento', summary: 'Confirmar presença e iniciar check-in', operationId: 'confirmarPagamento', description: 'Compatibilidade do endpoint antigo: exige entrada já aprovada pelo Mercado Pago. Não marca a diária como paga nem cobra outra parcela.' },
   { path: 'checkout', summary: 'Realizar check-out e liberar saldo', operationId: 'realizarCheckout', description: 'A diarista conclui um serviço iniciado. O saldo de 50% é liberado para pagamento separado pelo cliente.' },
 ]) {
@@ -837,6 +838,7 @@ components.schemas = {
   AgendamentoUpdate: objectSchema({ observacoes: nullableString(2000) }, [], { minProperties: 1 }),
   AgendamentoCancel: objectSchema({ descricao: nullableString(2000) }),
   Agendamento: objectSchema({
+    checkin_expirado: { type: 'boolean' }, checkin_limite_em: { type: 'string', format: 'date-time', nullable: true },
     id_agendamento: positiveInteger, id_cliente: positiveInteger, id_diarista: positiveInteger, id_endereco: { ...positiveInteger, nullable: true }, id_combo_base: { ...positiveInteger, nullable: true },
     data_agendamento: date, horario_inicio: { ...time, nullable: true }, horario_fim: { ...time, nullable: true },
     qtd_comodos: { type: 'integer', nullable: true }, tamanho_residencia: { type: 'string', enum: ['pequena', 'media', 'grande'], nullable: true },

@@ -3,6 +3,7 @@ import app from './app.js';
 import prisma from './lib/prisma.js';
 import { AgendamentoWorkflowService } from './services/agendamento/AgendamentoWorkflowService.js';
 import { PaymentService } from './services/pagamento/PaymentService.js';
+import { CheckinExpirationService } from './services/agendamento/CheckinExpirationService.js';
 
 const port = Number(process.env.PORT) || 3000;
 const server = app.listen(port, () => {
@@ -26,10 +27,22 @@ const refundTimer = setInterval(async () => {
 }, 60000);
 refundTimer.unref();
 
+const checkinExpirationService = new CheckinExpirationService();
+let checkinExpirationRunning = false;
+const checkinExpirationTimer = setInterval(async () => {
+  if (checkinExpirationRunning) return;
+  checkinExpirationRunning = true;
+  try { await checkinExpirationService.run(); }
+  catch { console.error('Falha temporária ao expirar check-ins.'); }
+  finally { checkinExpirationRunning = false; }
+}, 15000);
+checkinExpirationTimer.unref();
+
 async function shutdown(signal) {
   console.log(`${signal} recebido; encerrando servidor`);
   clearInterval(expirationTimer);
   clearInterval(refundTimer);
+  clearInterval(checkinExpirationTimer);
   server.close(async () => {
     await prisma.$disconnect();
     process.exit(0);

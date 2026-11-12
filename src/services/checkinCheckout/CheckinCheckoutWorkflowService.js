@@ -1,6 +1,8 @@
 import prisma from '../../lib/prisma.js';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../../errors/index.js';
 import { combineDateAndTime } from '../../utils/dateTime.js';
+import { expireCheckinLocked } from '../agendamento/CheckinExpirationService.js';
+import { checkinExpired } from '../agendamento/checkinExpirationPolicy.js';
 
 function scheduledAt(appointment) {
   if (!appointment.horario_inicio) return null;
@@ -10,7 +12,7 @@ function scheduledAt(appointment) {
 async function appointmentForParticipant(id, auth, database) {
   const appointment = await database.agendamento.findUnique({
     where: { id_agendamento: Number(id) },
-    include: { checkin_checkout: true, pagamento_parcela: true },
+    include: { checkin_checkout: true, pagamento_parcela: true, ocorrencia_agendamento: { select: { descricao: true } } },
   });
   if (!appointment) throw new NotFoundError('Agendamento não encontrado');
   if (appointment.id_cliente !== auth?.id_cliente && appointment.id_diarista !== auth?.id_diarista) {
@@ -23,11 +25,16 @@ export class CheckinCheckoutWorkflowService {
   constructor(database = prisma, clock = () => new Date()) { this.database = database; this.clock = clock; }
 
   async locked(id, auth, callback) {
-    return this.database.$transaction(async (tx) => {
+    const result = await this.database.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id_agendamento FROM agendamento WHERE id_agendamento = ${Number(id)} FOR UPDATE`;
       const appointment = await appointmentForParticipant(id, auth, tx);
+      if (appointment.status === 'Expirado' && checkinExpired(appointment, this.clock())) return { checkin_expirado: true };
+      if (await expireCheckinLocked(tx, appointment, this.clock())) return { checkin_expirado: true };
       return callback(appointment, tx);
     });
+    // Não lançar dentro da transação: isso desfaria a expiração e a fila de estorno.
+    if (result?.checkin_expirado) throw new ConflictError('Check-in expirado. O prazo de 30 minutos após o horário agendado terminou. A entrada paga será estornada integralmente.');
+    return result;
   }
 
   async requestCheckin(id, auth) {

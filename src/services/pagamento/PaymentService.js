@@ -3,8 +3,10 @@ import { BadRequestError, ConflictError, ForbiddenError, NotFoundError, External
 import { MercadoPagoClient } from './MercadoPagoClient.js';
 import { assertPayable, cents, installmentStatus, splitPayment } from './paymentPolicy.js';
 import { canCustomerReview } from '../avaliacao/reviewPolicy.js';
+import { checkinExpirationInfo, checkinExpired } from '../agendamento/checkinExpirationPolicy.js';
 
 const include = {
+  ocorrencia_agendamento: { select: { descricao: true } },
   checkin_checkout: true,
   avaliacao: { where: { autor_tipo: 'Cliente' }, select: { id_avaliacao: true, nota: true, comentario: true } },
   pagamento_parcela: { include: { transacoes: true }, orderBy: { fase: 'asc' } },
@@ -44,6 +46,7 @@ export class PaymentService {
     return {
       id_agendamento: appointment.id_agendamento,
       status_agendamento: appointment.status,
+      ...checkinExpirationInfo(appointment),
       valor_total: (amounts.entrada + amounts.saldo) / 100,
       moeda: 'BRL',
       quitado: installments.every((item) => item.status === 'Pago'),
@@ -193,7 +196,7 @@ export class PaymentService {
       });
       const transactions = await tx.pagamento_transacao.findMany({ where: { id_parcela: reference }, orderBy: [{ criado_em: 'asc' }, { id_pagamento: 'asc' }] });
       const validAppointment = known.fase === 'Entrada'
-        ? ['Aceito', 'Em_andamento', 'Concluido'].includes(appointment.status)
+        ? ['Aceito', 'Em_andamento', 'Concluido'].includes(appointment.status) && !checkinExpired(appointment)
         : appointment.status === 'Concluido' && appointment.checkin_checkout[0]?.horario_checkout;
       let credited = false;
       for (const item of transactions) {

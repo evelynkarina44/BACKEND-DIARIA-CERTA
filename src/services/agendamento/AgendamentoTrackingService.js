@@ -2,6 +2,7 @@ import prisma from '../../lib/prisma.js';
 import { ForbiddenError } from '../../errors/index.js';
 import { PaymentService } from '../pagamento/PaymentService.js';
 import { combineDateAndTime } from '../../utils/dateTime.js';
+import { checkinExpirationInfo } from './checkinExpirationPolicy.js';
 
 // Uma consulta paginada carrega o acompanhamento sem consultar o Mercado Pago
 // nem fazer uma requisição de pagamento por card. Apenas estados salvos da API.
@@ -44,6 +45,7 @@ export class AgendamentoTrackingService {
       agendamento_servico: { select: { diarista_servico: { select: { servico: { select: { nome_servico: true } } } } } },
       checkin_checkout: { select: { horario_checkin: true, horario_checkout: true, status_checkin: true } },
       avaliacao: { where: { autor_tipo: 'Cliente' }, select: { id_avaliacao: true, nota: true, comentario: true } },
+      ocorrencia_agendamento: { select: { descricao: true } },
       pagamento_parcela: { include: { transacoes: { select: { estorno_pendente: true } } } },
     };
     const [appointments, total] = await Promise.all([
@@ -55,6 +57,7 @@ export class AgendamentoTrackingService {
       data: appointments.map(appointment => ({
         id_agendamento: appointment.id_agendamento,
         status: appointment.status,
+        ...checkinExpirationInfo(appointment, now),
         data_agendamento: appointment.data_agendamento,
         horario_inicio: appointment.horario_inicio,
         inicio_em: appointment.horario_inicio ? combineDateAndTime(appointment.data_agendamento, appointment.horario_inicio).toISOString() : null,

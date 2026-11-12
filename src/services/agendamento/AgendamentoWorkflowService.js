@@ -4,6 +4,7 @@ import prisma from '../../lib/prisma.js';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../../errors/index.js';
 import { combineDateAndTime, currentLocalDate } from '../../utils/dateTime.js';
 import { findBookingConflict, findDuplicateRequest, lockDiarista } from './availabilityPolicy.js';
+import { checkinExpirationInfo } from './checkinExpirationPolicy.js';
 
 const agendamentoInclude = {
   cliente: { include: { usuario: { select: { nome: true, foto_perfil: true, telefone: true } } } },
@@ -26,6 +27,7 @@ function isParticipant(appointment, auth) {
 function present(appointment) {
   return {
     ...appointment,
+    ...checkinExpirationInfo(appointment),
     valor_estimado: appointment.valor_estimado === null ? null : Number(appointment.valor_estimado),
     combo_base: appointment.combo_base ? { ...appointment.combo_base, valor_base: Number(appointment.combo_base.valor_base) } : null,
     agendamento_servico: appointment.agendamento_servico?.map((item) => ({ ...item, preco: Number(item.preco) })) ?? [],
