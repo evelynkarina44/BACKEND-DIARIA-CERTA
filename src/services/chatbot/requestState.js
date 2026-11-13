@@ -38,7 +38,10 @@ export function mergeRequestState(previous, extraction, selection = {}, now) {
     state.servicos = [...new Set([...(state.servicos || []), selection.id_servico])];
     delete state.nao_encontrados;
   }
-  if (selection.id_endereco) state.id_endereco = selection.id_endereco;
+  if (selection.id_endereco) {
+    if (state.id_endereco !== selection.id_endereco) delete state.id_combo_base;
+    state.id_endereco = selection.id_endereco;
+  }
   if ('id_combo_base' in selection) state.id_combo_base = selection.id_combo_base;
   return state;
 }

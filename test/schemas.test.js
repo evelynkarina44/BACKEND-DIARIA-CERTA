@@ -61,7 +61,9 @@ test('endereço exige exatamente um proprietário', () => {
   };
   assert.equal(createEnderecoSchema.safeParse(base).success, false);
   assert.equal(createEnderecoSchema.safeParse({ ...base, id_cliente: 1, id_diarista: 2 }).success, false);
-  assert.equal(createEnderecoSchema.safeParse({ ...base, id_cliente: 1 }).success, true);
+  assert.equal(createEnderecoSchema.safeParse({ ...base, id_cliente: 1 }).success, false);
+  assert.equal(createEnderecoSchema.safeParse({ ...base, id_cliente: 1, apelido: 'Casa 1', qtd_comodos: 3, tamanho_casa: 'pequena' }).success, true);
+  assert.equal(createEnderecoSchema.safeParse({ ...base, id_diarista: 2 }).success, true);
 });
 
 test('cadastros de cliente e diarista exigem endereço', () => {

@@ -11,7 +11,11 @@ export class CreateClienteService {
     const { endereco, ...cliente } = data;
     return this.database.$transaction(async (tx) => {
       const profile = await tx.cliente.create({
-        data: { ...cliente, endereco: { create: endereco } },
+        data: { ...cliente, endereco: { create: {
+          ...endereco, apelido: endereco.apelido || 'Casa 1',
+          qtd_comodos: endereco.qtd_comodos ?? cliente.qtd_comodos,
+          tamanho_casa: endereco.tamanho_casa ?? cliente.tamanho_casa,
+        } } },
         include: { endereco: true },
       });
       await syncUsuarioTipo(tx, data.id_usuario);

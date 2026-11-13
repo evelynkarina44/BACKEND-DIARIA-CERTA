@@ -312,11 +312,13 @@ paths['/api/diarista'].get.parameters = [
   { name: 'id_servico', in: 'query', schema: { type: 'integer', minimum: 1 } },
   { name: 'servico_nome', in: 'query', description: 'Até 10 nomes ou partes de nomes separados por vírgula, ponto e vírgula ou quebra de linha. A diarista deve oferecer TODOS os serviços como ativos. Até 100 caracteres por termo; repetições são ignoradas.', schema: { type: 'string', maxLength: 1000 } },
   { name: 'cep_origem', in: 'query', description: 'CEP do cliente usado como origem do cálculo de distância.', schema: { type: 'string', pattern: '^\\d{5}-?\\d{3}$' } },
-  { name: 'distancia_max', in: 'query', description: 'Distância máxima em quilômetros. Exige cep_origem.', schema: { type: 'number', minimum: 0, exclusiveMinimum: true, maximum: 5000 } },
+  { name: 'id_endereco_origem', in: 'query', description: 'Casa selecionada. Exige sessão de cliente e endereço da própria conta. O CEP atual dessa casa, consultado no banco, prevalece sobre cep_origem.', schema: { type: 'integer', minimum: 1 } },
+  { name: 'distancia_max', in: 'query', description: 'Distância máxima em quilômetros. Exige cep_origem ou id_endereco_origem.', schema: { type: 'number', minimum: 0, exclusiveMinimum: true, maximum: 5000 } },
   { name: 'ordenar', in: 'query', schema: { type: 'string', enum: ['avaliacao', 'preco_asc', 'preco_desc', 'nome', 'distancia'], default: 'avaliacao' } },
 ];
 paths['/api/diarista'].get.security = [{}, ...bearerSecurity];
 paths['/api/diarista'].get.responses['401'] = responseRef('Unauthorized');
+paths['/api/diarista'].get.responses['403'] = responseRef('Forbidden');
 
 paths['/api/diarista/{id}/estatisticas'] = {
   get: {
@@ -640,6 +642,9 @@ const usuarioCreate = objectSchema({
 }, ['nome', 'email', 'senha', 'telefone']);
 
 const enderecoCadastro = objectSchema({
+  apelido: { type: 'string', minLength: 2, maxLength: 60, description: 'Nome da casa, por exemplo Casa 1.' },
+  qtd_comodos: { type: 'integer', minimum: 1, maximum: 100, description: 'Quantidade de cômodos deste endereço.' },
+  tamanho_casa: { type: 'string', enum: ['pequena', 'media', 'grande'], description: 'Tamanho desta residência.' },
   bairro: { type: 'string', minLength: 2, maxLength: 100 },
   cep: { type: 'string', pattern: '^\\d{5}-?\\d{3}$', example: '01001-000' },
   logradouro: { type: 'string', minLength: 2, maxLength: 150 },
@@ -698,9 +703,9 @@ const enderecoCreate = objectSchema({
   id_diarista: positiveInteger,
   ...enderecoCadastro.properties,
 }, ['bairro', 'cep', 'logradouro', 'numero', 'cidade', 'estado'], {
-  description: 'Informe exatamente um proprietário: id_cliente ou id_diarista.',
+  description: 'Informe exatamente um proprietário. Para endereço de cliente, apelido, qtd_comodos e tamanho_casa são obrigatórios. Cada casa mantém os próprios dados.',
   oneOf: [
-    { required: ['id_cliente'], not: { required: ['id_diarista'] } },
+    { required: ['id_cliente', 'apelido', 'qtd_comodos', 'tamanho_casa'], not: { required: ['id_diarista'] } },
     { required: ['id_diarista'], not: { required: ['id_cliente'] } },
   ],
 });

@@ -64,6 +64,9 @@ export const checkRegistrationSchema = z.object({
 export const updateUsuarioSchema = z.object(usuarioFields).omit({ tipo: true }).partial().refine((data) => Object.keys(data).length > 0, 'Informe ao menos um campo');
 
 const enderecoCadastroFields = {
+  apelido: z.string().trim().min(2).max(60).optional(),
+  qtd_comodos: z.coerce.number().int().positive().max(100).optional(),
+  tamanho_casa: z.enum(['pequena', 'media', 'grande']).optional(),
   bairro: z.string().trim().min(2).max(100),
   cep: z.string().trim().regex(/^\d{5}-?\d{3}$/).transform((value) => value.replace(/^(\d{5})(\d{3})$/, '$1-$2')),
   logradouro: z.string().trim().min(2).max(150),
@@ -133,6 +136,12 @@ const enderecoFields = {
 const exactlyOneOwner = (data) => Boolean(data.id_cliente) !== Boolean(data.id_diarista);
 export const createEnderecoSchema = z.object(enderecoFields).refine(exactlyOneOwner, {
   message: 'O endereço deve pertencer a um cliente ou a uma diarista, exclusivamente',
+}).superRefine((data, context) => {
+  if (data.id_cliente) {
+    for (const field of ['apelido', 'qtd_comodos', 'tamanho_casa']) {
+      if (data[field] === undefined) context.addIssue({ code: 'custom', path: [field], message: 'Informe os dados desta casa.' });
+    }
+  }
 });
 export const updateEnderecoSchema = z.object(enderecoFields).partial().refine((data) => Object.keys(data).length > 0, 'Informe ao menos um campo');
 
@@ -269,10 +278,11 @@ export const diaristaSearchSchema = paginationSchema.extend({
   preco_max: z.coerce.number().nonnegative().optional(),
   id_servico: positiveId.optional(),
   cep_origem: z.string().trim().regex(/^\d{5}-?\d{3}$/).optional(),
+  id_endereco_origem: positiveId.optional(),
   distancia_max: z.coerce.number().positive().max(5000).optional(),
   ordenar: z.enum(['avaliacao', 'preco_asc', 'preco_desc', 'nome', 'distancia']).default('avaliacao'),
 }).superRefine((data, context) => {
-  if ((data.distancia_max !== undefined || data.ordenar === 'distancia') && !data.cep_origem) {
+  if ((data.distancia_max !== undefined || data.ordenar === 'distancia') && !data.cep_origem && !data.id_endereco_origem) {
     context.addIssue({ code: 'custom', path: ['cep_origem'], message: 'Informe o CEP de origem para calcular a distância' });
   }
 });

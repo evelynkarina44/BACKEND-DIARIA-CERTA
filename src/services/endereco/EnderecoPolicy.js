@@ -2,7 +2,9 @@ import { ForbiddenError, NotFoundError } from '../../errors/index.js';
 
 export function assertEnderecoOwner(endereco, auth) {
   if (!endereco) throw new NotFoundError('Endereço não encontrado');
-  if (endereco.id_cliente !== auth?.id_cliente && endereco.id_diarista !== auth?.id_diarista) {
+  const ownsClient = Boolean(auth?.id_cliente) && endereco.id_cliente === auth.id_cliente;
+  const ownsWorker = Boolean(auth?.id_diarista) && endereco.id_diarista === auth.id_diarista;
+  if (!ownsClient && !ownsWorker) {
     throw new ForbiddenError('Endereço pertence a outro usuário');
   }
 }

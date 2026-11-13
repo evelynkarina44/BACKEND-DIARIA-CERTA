@@ -3,7 +3,7 @@
 import prisma from '../../lib/prisma.js';
 import { currentLocalDate } from '../../utils/dateTime.js';
 import { calculateDistanceKm, coordinatesByCep } from '../location/CepGeocodingService.js';
-import { ExternalServiceError } from '../../errors/index.js';
+import { ExternalServiceError, ForbiddenError } from '../../errors/index.js';
 import { intervalsOverlap } from '../agendamento/availabilityPolicy.js';
 import { responseHistoryInclude, respondsQuickly } from './responseSpeedPolicy.js';
 import { serviceSearchTerms } from '../../utils/serviceSearchTerms.js';
@@ -82,7 +82,7 @@ function present(profile, serviceCatalog = [], distanceKm = null) {
 }
 
 export class DiaristaSearchService {
-  constructor(database = prisma) { this.database = database; }
+  constructor(database = prisma, geocode = coordinatesByCep) { this.database = database; this.geocode = geocode; }
 
   // APOIO | ETAPA 2 — Selecionar dados públicos e ofertas ativas; nomes ambíguos exigem esclarecimento.
   async catalogProfiles({ nome, id }) {
@@ -165,7 +165,17 @@ export class DiaristaSearchService {
     return { profiles, ownProfile };
   }
 
-  async list({ page = 1, limit = 20, nome, bairro, cidade, estado, avaliacao_min, preco_min, preco_max, id_servico, servico_nome, cep_origem, distancia_max, responde_rapido, ordenar = 'avaliacao' } = {}, auth) {
+  async list({ page = 1, limit = 20, nome, bairro, cidade, estado, avaliacao_min, preco_min, preco_max, id_servico, servico_nome, cep_origem, id_endereco_origem, distancia_max, responde_rapido, ordenar = 'avaliacao' } = {}, auth) {
+    let originCep = cep_origem;
+    if (id_endereco_origem) {
+      if (!auth?.id_cliente) throw new ForbiddenError('Entre como cliente para selecionar uma casa.');
+      const address = await this.database.endereco.findUnique({
+        where: { id_endereco: id_endereco_origem }, select: { id_cliente: true, cep: true },
+      });
+      if (!address || address.id_cliente !== auth.id_cliente) throw new ForbiddenError('Selecione uma casa cadastrada na sua conta.');
+      // O banco é a origem: não usar um CEP antigo enviado pela tela.
+      originCep = address.cep;
+    }
     const serviceFilter = {};
     if (id_servico) serviceFilter.id_servico = id_servico;
     const serviceTerms = serviceSearchTerms(servico_nome);
@@ -189,13 +199,13 @@ export class DiaristaSearchService {
       this.database.diarista.findMany({ where, include: publicProfileInclude() }),
       this.database.servico.findMany({ orderBy: { nome_servico: 'asc' } }),
     ]);
-    const origin = cep_origem ? await coordinatesByCep(cep_origem) : null;
-    if (cep_origem && !origin) {
+    const origin = originCep ? await this.geocode(originCep) : null;
+    if ((originCep || id_endereco_origem) && !origin) {
       throw new ExternalServiceError('Não foi possível obter a localização do CEP do cliente');
     }
     let profiles = await Promise.all(rawProfiles.map(async (profile) => {
       const destination = origin && profile.endereco[0]?.cep
-        ? await coordinatesByCep(profile.endereco[0].cep)
+        ? await this.geocode(profile.endereco[0].cep)
         : null;
       const distanceKm = origin && destination ? calculateDistanceKm(origin, destination) : null;
       return present(profile, serviceCatalog, distanceKm);

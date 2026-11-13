@@ -243,6 +243,9 @@ model disponibilidade_diarista {
 
 model endereco {
   id_endereco Int           @id @default(autoincrement())
+  apelido     String?       @db.VarChar(60)
+  qtd_comodos Int?
+  tamanho_casa cliente_tamanho_casa?
   id_diarista Int?
   id_cliente  Int?
   bairro      String        @db.VarChar(100)

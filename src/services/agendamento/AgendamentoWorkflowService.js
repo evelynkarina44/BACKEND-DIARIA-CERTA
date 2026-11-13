@@ -100,7 +100,12 @@ export class AgendamentoWorkflowService {
     const startsAt = combineDateAndTime(data.data_agendamento, data.horario_inicio);
     if (startsAt <= new Date()) throw new BadRequestError('O agendamento deve ser futuro');
 
-    const sizeField = `atende_casa_${data.tamanho_residencia}`;
+    // O endereço selecionado é a fonte dos dados da casa, nunca o formulário.
+    const residence = {
+      qtd_comodos: endereco.qtd_comodos ?? data.qtd_comodos,
+      tamanho_residencia: endereco.tamanho_casa ?? data.tamanho_residencia,
+    };
+    const sizeField = `atende_casa_${residence.tamanho_residencia}`;
     const selectedCombo = data.id_combo_base
       ? diarista.combo_base.find((combo) => combo.id_combo_base === data.id_combo_base)
       : null;
@@ -125,6 +130,7 @@ export class AgendamentoWorkflowService {
       valor_estimado: Number(estimated.toFixed(2)),
       combo_aplicado: selectedCombo?.id_combo_base ?? null,
       services,
+      ...residence,
     };
   }
 
@@ -158,8 +164,8 @@ export class AgendamentoWorkflowService {
         data_agendamento: data.data_agendamento,
         horario_inicio: data.horario_inicio,
         horario_fim: data.horario_fim,
-        qtd_comodos: data.qtd_comodos,
-        tamanho_residencia: data.tamanho_residencia,
+        qtd_comodos: pricing.qtd_comodos ?? data.qtd_comodos,
+        tamanho_residencia: pricing.tamanho_residencia ?? data.tamanho_residencia,
         valor_estimado: pricing.valor_estimado,
         observacoes: data.observacoes,
         expira_em,

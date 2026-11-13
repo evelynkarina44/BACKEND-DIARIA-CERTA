@@ -18,7 +18,7 @@ export class FindClienteService {
             data_cadastro: true,
           },
         },
-        endereco: true,
+        endereco: { orderBy: { id_endereco: 'asc' } },
         avaliacao: {
           select: {
             id_avaliacao: true,

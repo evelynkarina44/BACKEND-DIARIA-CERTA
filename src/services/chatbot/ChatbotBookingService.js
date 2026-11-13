@@ -73,20 +73,20 @@ export class ChatbotBookingService {
       data_agendamento: state.data,
       horario_inicio: state.horario,
       horario_fim: time(slot.horario_fim),
-      qtd_comodos: client.qtd_comodos,
-      tamanho_residencia: client.tamanho_casa,
+      qtd_comodos: address.qtd_comodos ?? client.qtd_comodos,
+      tamanho_residencia: address.tamanho_casa ?? client.tamanho_casa,
       servicos: services,
     };
   }
 
-  comboOptions(profile, state, client) {
+  comboOptions(profile, state, client, address) {
     const availableServiceIds = new Set(profile.diarista_servico.map((item) => item.id_servico));
     const options = [];
     if (state.id_combo_base) {
       options.push({ tipo: 'combo', id: null, label: 'Somente serviços individuais' });
     }
     for (const combo of profile.combo_base) {
-      const servesHouseSize = combo[`atende_casa_${client.tamanho_casa}`];
+      const servesHouseSize = combo[`atende_casa_${address?.tamanho_casa ?? client.tamanho_casa}`];
       const offersAllServices = combo.combo_servico.every((service) => availableServiceIds.has(service.id_servico));
       if (servesHouseSize && offersAllServices && combo.id_combo_base !== state.id_combo_base) {
         options.push({ tipo: 'combo', id: combo.id_combo_base, label: `${combo.nome_combo} — inclui os serviços do combo` });
@@ -100,7 +100,7 @@ export class ChatbotBookingService {
     const client = await new ChatbotBookingService(database, this.geocode).client(auth);
     const address = client?.endereco.find((item) => item.id_endereco === payload.id_endereco);
     if (!address) throw new ConflictError('O endereço mudou. Peça uma nova proposta ao assistente.');
-    const currentPayload = { ...payload, qtd_comodos: client.qtd_comodos, tamanho_residencia: client.tamanho_casa };
+    const currentPayload = { ...payload, qtd_comodos: address.qtd_comodos ?? client.qtd_comodos, tamanho_residencia: address.tamanho_casa ?? client.tamanho_casa };
     const parsed = createAgendamentoSchema.parse(currentPayload);
     const pricing = await new AgendamentoWorkflowService(database).validateAndPrice(parsed, auth);
     const profile = await database.diarista.findUnique({
@@ -120,8 +120,8 @@ export class ChatbotBookingService {
     const summary = {
       diarista: { id_diarista: parsed.id_diarista, nome: profile.usuario.nome, foto_perfil: profile.usuario.foto_perfil },
       data: currentPayload.data_agendamento, horario_inicio: currentPayload.horario_inicio,
-      endereco: `${address.logradouro}, ${address.numero}${address.complemento ? ` - ${address.complemento}` : ''} - ${address.bairro}, ${address.cidade}/${address.estado} - CEP ${address.cep}`,
-      qtd_comodos: client.qtd_comodos, tamanho_casa: client.tamanho_casa,
+      endereco: `${address.apelido ? `${address.apelido} — ` : ''}${address.logradouro}, ${address.numero}${address.complemento ? ` - ${address.complemento}` : ''} - ${address.bairro}, ${address.cidade}/${address.estado} - CEP ${address.cep}`,
+      qtd_comodos: currentPayload.qtd_comodos, tamanho_casa: currentPayload.tamanho_residencia,
       servicos: profile.diarista_servico.sort((a, b) => a.id_diarista_servico - b.id_diarista_servico).map((item) => ({ id_diarista_servico: item.id_diarista_servico, nome: item.servico.nome_servico, preco: Number(item.preco) })),
       combo: profile.combo_base[0]?.nome_combo || null,
       valor_estimado: pricing.valor_estimado,
@@ -186,7 +186,7 @@ export class ChatbotBookingService {
     } else if (client.endereco.length === 1) {
       address = client.endereco[0];
     }
-    if (!address) return { texto: 'Qual dos seus endereços deseja utilizar?', opcoes: client.endereco.map((item) => ({ tipo: 'endereco', id: item.id_endereco, label: `${item.logradouro}, ${item.numero} - ${item.bairro}` })) };
+    if (!address) return { texto: 'Em qual casa será a diária? Selecione antes de enviar a solicitação.', opcoes: client.endereco.map((item) => ({ tipo: 'endereco', id: item.id_endereco, label: `${item.apelido || `Casa ${item.id_endereco}`} — ${item.logradouro}, ${item.numero} - ${item.bairro}` })) };
     const date = new Date(`${state.data}T00:00:00Z`);
     const start = new Date(`1970-01-01T${state.horario}:00Z`);
     if (combineDateAndTime(date, start) <= new Date()) return { texto: 'Esse horário já passou. Escolha uma data e um horário futuros.', opcoes: [] };
@@ -206,7 +206,7 @@ export class ChatbotBookingService {
         const proposal = await this.summarize(payload, auth);
         return {
           texto: 'Encontrei uma profissional compatível com seu pedido. Confira os dados e confirme para enviar uma solicitação. O aceite depende da diarista.',
-          opcoes: this.comboOptions(profile, state, client),
+          opcoes: this.comboOptions(profile, state, client, address),
           proposal: { ...proposal, resumo: { ...proposal.summary, distancia_km: Number(distance.toFixed(2)) } },
         };
       } catch (error) {
