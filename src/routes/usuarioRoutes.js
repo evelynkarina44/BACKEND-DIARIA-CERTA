@@ -1,4 +1,6 @@
-import { Router } from 'express';
+import { Router, raw } from 'express';
+import { UploadProfilePhotoService, MAX_PHOTO_BYTES } from '../services/usuario/UploadProfilePhotoService.js';
+import { AppError } from '../errors/index.js';
 import { rateLimit } from 'express-rate-limit';
 import { CheckUsuarioAvailabilityService } from '../services/usuario/CheckUsuarioAvailabilityService.js';
 import { UsuarioController } from '../controllers/usuarioController.js';
@@ -24,6 +26,15 @@ router.post('/validar-cadastro', (_req, res, next) => {
 
 router.post('/', validate(createUsuarioSchema), controller.criarUsuario);
 router.use(authenticate);
+router.post('/foto', rateLimit({ windowMs: 15 * 60 * 1000, limit: 20, standardHeaders: true, legacyHeaders: false,
+  message: { error: 'Muitas alterações de foto. Aguarde alguns minutos.' } }),
+  (req, _res, next) => req.is('application/octet-stream') ? next() : next(new AppError('Envie o arquivo de imagem.', 415)),
+  raw({ type: 'application/octet-stream', limit: MAX_PHOTO_BYTES }), async (req, res) => {
+    const baseUrl = process.env.PUBLIC_API_URL?.trim() || `${req.protocol}://${req.get('host')}`;
+    const user = await new UploadProfilePhotoService().execute(req.body, req.auth, baseUrl);
+    res.set('Cache-Control', 'no-store');
+    return res.json(user);
+  });
 router.get('/', validate(listQuerySchema, 'query'), controller.listarUsuarios);
 router.get('/:id', validate(idSchema, 'params'), controller.buscarUsuarioPorId);
 router.put('/:id', validate(idSchema, 'params'), validate(updateUsuarioSchema), controller.atualizarUsuario);

@@ -3,6 +3,12 @@ import prisma from '../lib/prisma.js';
 import { ForbiddenError, InternalServerError, UnauthorizedError } from '../errors/index.js';
 import { availableProfiles } from '../services/auth/authSession.js';
 
+// A busca continua pública, mas um token enviado deve ser validado para personalizá-la.
+export function optionalAuthenticate(req, res, next) {
+  if (!req.headers.authorization) return next();
+  return authenticate(req, res, next);
+}
+
 export async function authenticate(req, _res, next) {
   try {
     const authorization = req.headers.authorization;

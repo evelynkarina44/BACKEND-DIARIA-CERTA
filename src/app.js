@@ -1,4 +1,5 @@
 import express from 'express';
+import { photoDirectory } from './services/usuario/UploadProfilePhotoService.js';
 import cors from 'cors';
 import helmet from 'helmet';
 import swaggerUi from 'swagger-ui-express';
@@ -55,6 +56,11 @@ app.use(cors({
   credentials: true,
 }));
 app.use(express.json({ limit: '1mb' }));
+// Fotos de perfil são públicas; nomes aleatórios e conteúdo JPEG validado no upload.
+app.use('/uploads/perfis', express.static(photoDirectory, {
+  dotfiles: 'deny', index: false, maxAge: '7d',
+  setHeaders: (res) => { res.set('Cross-Origin-Resource-Policy', 'cross-origin'); },
+}));
 
 app.get('/api-docs.json', (_req, res) => res.status(200).json(openApiDocument));
 app.get('/health', (_req, res) => res.status(200).json({ status: 'ok' }));

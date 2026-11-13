@@ -255,6 +255,20 @@ paths['/api/usuario/validar-cadastro'] = {
   },
 };
 
+paths['/api/usuario/foto'] = {
+  post: {
+    tags: ['Usuários'], summary: 'Envia foto de perfil da própria conta', operationId: 'enviarFotoPerfil', security: bearerSecurity,
+    description: 'Corpo binário JPG, PNG ou WebP de até 5 MB. Valida e converte para JPEG 512x512 sem metadados. Salva a URL em usuario.foto_perfil; a foto é pública e compartilhada pelos perfis cliente e diarista da conta.',
+    requestBody: { required: true, content: { 'application/octet-stream': { schema: { type: 'string', format: 'binary' } } } },
+    responses: {
+      '200': successResponse('Foto salva; retorna os dados públicos da conta.', schemaRef('Usuario')),
+      '400': { description: 'Imagem inválida.' }, '401': { description: 'Sessão inválida ou ausente.' },
+      '413': { description: 'Imagem maior que 5 MB.' }, '415': { description: 'Envie o corpo como application/octet-stream.' },
+      '429': { description: 'Limite de alterações excedido.' }, '500': { description: 'Falha ao salvar a foto.' },
+    },
+  },
+};
+
 addCrud({
   base: '/api/usuario', tag: 'Usuários', singular: 'usuário', plural: 'usuários', resource: 'Usuario',
   createSchema: 'UsuarioCreate', updateSchema: 'UsuarioUpdate', paginated: true,
@@ -278,7 +292,7 @@ addCrud({
   createSchema: 'DiaristaCreate', updateSchema: 'DiaristaUpdate', paginated: true,
   security: { create: true, update: 'role', delete: 'role' },
   descriptions: {
-    list: 'Pesquisa perfis públicos por nome, localização, avaliação, preço e serviço.',
+    list: 'Pesquisa perfis públicos por nome, localização, avaliação, preço e serviço. Com token válido, exclui o perfil de diarista da própria conta antes da paginação, inclusive quando o perfil ativo é cliente.',
     find: 'Retorna o perfil público detalhado, incluindo serviços, combos, agenda e avaliações públicas.',
     update: 'Exige token com perfil de diarista.',
     delete: 'Exige token com perfil de diarista.',
@@ -301,6 +315,8 @@ paths['/api/diarista'].get.parameters = [
   { name: 'distancia_max', in: 'query', description: 'Distância máxima em quilômetros. Exige cep_origem.', schema: { type: 'number', minimum: 0, exclusiveMinimum: true, maximum: 5000 } },
   { name: 'ordenar', in: 'query', schema: { type: 'string', enum: ['avaliacao', 'preco_asc', 'preco_desc', 'nome', 'distancia'], default: 'avaliacao' } },
 ];
+paths['/api/diarista'].get.security = [{}, ...bearerSecurity];
+paths['/api/diarista'].get.responses['401'] = responseRef('Unauthorized');
 
 paths['/api/diarista/{id}/estatisticas'] = {
   get: {
@@ -668,13 +684,14 @@ const comboBaseCadastro = objectSchema({
 
 const diaristaCreate = objectSchema({
   id_usuario: positiveInteger,
+  data_nascimento: { type: 'string', format: 'date', description: 'Data real de nascimento, sem datas futuras e com no mínimo 18 anos completos. Dado privado, não exibido no perfil público.' },
   descricao: { type: 'string', minLength: 20, maxLength: 2000 },
   frequencia_resposta: nullableString(50),
   qtd_max_comodos: { type: 'integer', minimum: 1, maximum: 100 },
   endereco: enderecoCadastro,
   servicos: { type: 'array', minItems: 1, maxItems: 50, items: servicoCadastroDiarista },
   combo_base: comboBaseCadastro,
-}, ['id_usuario', 'descricao', 'qtd_max_comodos', 'endereco']);
+}, ['id_usuario', 'data_nascimento', 'descricao', 'qtd_max_comodos', 'endereco']);
 
 const enderecoCreate = objectSchema({
   id_cliente: positiveInteger,
@@ -807,7 +824,7 @@ components.schemas = {
   DiaristaUpdate: partialSchema(diaristaCreate, ['id_usuario', 'endereco', 'servicos', 'combo_base']),
   Diarista: objectSchema({
     responde_rapido: { type: 'boolean', description: 'Calculado pelo histórico real de respostas, não por frequencia_resposta.' },
-    id_diarista: positiveInteger, ...diaristaCreate.properties, avaliacao_media: { type: 'number', nullable: true }, valor_medio_diaria: { type: 'number', nullable: true }, distancia_km: { type: 'number', minimum: 0, nullable: true },
+    id_diarista: positiveInteger, ...Object.fromEntries(Object.entries(diaristaCreate.properties).filter(([key]) => key !== 'data_nascimento')), avaliacao_media: { type: 'number', nullable: true }, valor_medio_diaria: { type: 'number', nullable: true }, distancia_km: { type: 'number', minimum: 0, nullable: true },
   }, ['id_diarista', 'id_usuario', 'descricao', 'qtd_max_comodos'], { additionalProperties: true }),
   DiaristaEstatisticas: objectSchema({
     agendamentos_por_status: { type: 'object', additionalProperties: { type: 'integer', minimum: 0 } },

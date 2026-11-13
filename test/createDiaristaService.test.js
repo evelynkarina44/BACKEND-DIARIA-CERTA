@@ -35,6 +35,7 @@ test('cadastro da diarista grava perfil, preço individual, combo e vínculos em
 
   await service.execute({
     id_usuario: 3,
+    data_nascimento: new Date('1990-01-01T00:00:00Z'),
     descricao: 'Profissional experiente e organizada.',
     qtd_max_comodos: 8,
     endereco: { cep: '01001-000' },
@@ -46,6 +47,7 @@ test('cadastro da diarista grava perfil, preço individual, combo e vínculos em
   }, { id_usuario: 3 });
 
   assert.equal(calls.filter(([model]) => model === 'diarista_servico').length, 2);
+  assert.equal(calls.find(([model]) => model === 'diarista')[1].data_nascimento.toISOString(), '1990-01-01T00:00:00.000Z');
   assert.equal(calls.filter(([model]) => model === 'combo_base').length, 1);
   assert.deepEqual(calls.find(([operation]) => operation === 'usuario.update')?.[1], { tipo: 'AMBOS' });
   assert.deepEqual(calls.find(([model]) => model === 'combo_servico')?.[1], {

@@ -193,6 +193,7 @@ model denuncia {
 model diarista {
   id_diarista              Int                        @id @default(autoincrement())
   id_usuario               Int                        @unique(map: "uq_diarista_usuario")
+  data_nascimento         DateTime?                  @db.Date
   descricao                String                     @db.Text
   frequencia_resposta      String?                    @db.VarChar(50)
   qtd_max_comodos          Int

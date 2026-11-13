@@ -33,6 +33,11 @@ export class CreateDiaristaService {
         },
       });
       if (!servicos.length || current.diarista_servico.length || current.combo_base.length) {
+        // Retomada de cadastro parcial não pode descartar a data recém-informada.
+        if (!current.data_nascimento && diarista.data_nascimento) {
+          await this.database.diarista.update({ where: { id_diarista: current.id_diarista }, data: { data_nascimento: diarista.data_nascimento } });
+          current.data_nascimento = diarista.data_nascimento;
+        }
         await syncUsuarioTipo(this.database, data.id_usuario);
         return current;
       }

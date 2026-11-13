@@ -18,6 +18,10 @@ export function errorHandler(error, req, res, _next) {
     return res.status(400).json({ error: 'JSON malformado' });
   }
 
+  if (error.type === 'entity.too.large') {
+    return res.status(413).json({ error: req.originalUrl?.startsWith('/api/usuario/foto') ? 'A imagem deve ter até 5 MB.' : 'Arquivo ou conteúdo enviado muito grande.' });
+  }
+
   if (error instanceof AppError) {
     return res.status(error.statusCode).json({
       error: error.message,

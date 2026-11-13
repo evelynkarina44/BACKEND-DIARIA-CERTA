@@ -63,7 +63,7 @@ function publicProfileInclude() {
 }
 
 function present(profile, serviceCatalog = [], distanceKm = null) {
-  const { agendamento: responseHistory, ...publicProfile } = profile;
+  const { agendamento: responseHistory, data_nascimento: _privateBirthDate, ...publicProfile } = profile;
   const prices = profile.diarista_servico.map((item) => Number(item.preco));
   const offeredServiceIds = new Set(profile.diarista_servico.map((item) => item.id_servico));
   const publicAddresses = profile.endereco.map(({ cep: _cep, ...address }) => address);
@@ -165,7 +165,7 @@ export class DiaristaSearchService {
     return { profiles, ownProfile };
   }
 
-  async list({ page = 1, limit = 20, nome, bairro, cidade, estado, avaliacao_min, preco_min, preco_max, id_servico, servico_nome, cep_origem, distancia_max, responde_rapido, ordenar = 'avaliacao' } = {}) {
+  async list({ page = 1, limit = 20, nome, bairro, cidade, estado, avaliacao_min, preco_min, preco_max, id_servico, servico_nome, cep_origem, distancia_max, responde_rapido, ordenar = 'avaliacao' } = {}, auth) {
     const serviceFilter = {};
     if (id_servico) serviceFilter.id_servico = id_servico;
     const serviceTerms = serviceSearchTerms(servico_nome);
@@ -174,6 +174,7 @@ export class DiaristaSearchService {
     }
 
     const where = {
+      ...(auth?.id_usuario ? { id_usuario: { not: auth.id_usuario } } : {}),
       usuario: { ativo: true, bloqueado: false, ...(nome ? { nome: { contains: nome } } : {}) },
       ...(avaliacao_min !== undefined ? { avaliacao_media: { gte: avaliacao_min } } : {}),
       ...(bairro || cidade || estado ? { endereco: { some: { ...(bairro ? { bairro: { contains: bairro } } : {}), ...(cidade ? { cidade: { contains: cidade } } : {}), ...(estado ? { estado } : {}) } } } : {}),

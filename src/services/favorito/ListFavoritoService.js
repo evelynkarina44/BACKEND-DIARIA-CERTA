@@ -31,7 +31,7 @@ export class ListFavoritoService {
     ]);
     const presented = data.map((favorite) => {
       if (!favorite.diarista) return favorite;
-      const { agendamento, ...profile } = favorite.diarista;
+      const { agendamento, data_nascimento: _privateBirthDate, ...profile } = favorite.diarista;
       return { ...favorite, diarista: { ...profile, responde_rapido: respondsQuickly(agendamento) } };
     });
     return { data: presented, pagination: { page, limit, total, pages: Math.ceil(total / limit) } };

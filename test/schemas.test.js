@@ -73,6 +73,7 @@ test('cadastros de cliente e diarista exigem endereço', () => {
   };
   const diarista = {
     id_usuario: 2,
+    data_nascimento: '1990-01-01',
     descricao: 'Descrição profissional com tamanho válido.',
     qtd_max_comodos: 8,
   };
@@ -85,6 +86,7 @@ test('cadastros de cliente e diarista exigem endereço', () => {
 test('cadastro da diarista aceita serviços individuais e combo relacionados', () => {
   const result = createDiaristaSchema.safeParse({
     id_usuario: 2,
+    data_nascimento: '1990-01-01',
     descricao: 'Descrição profissional com tamanho válido.',
     qtd_max_comodos: 8,
     endereco: enderecoCadastro,
@@ -105,6 +107,7 @@ test('cadastro da diarista aceita serviços individuais e combo relacionados', (
 test('combo da diarista exige ao menos um serviço incluído', () => {
   const result = createDiaristaSchema.safeParse({
     id_usuario: 2,
+    data_nascimento: '1990-01-01',
     descricao: 'Descrição profissional com tamanho válido.',
     qtd_max_comodos: 8,
     endereco: enderecoCadastro,

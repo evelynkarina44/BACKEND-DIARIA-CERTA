@@ -91,6 +91,7 @@ export const updateClienteSchema = z.object(clienteFields).omit({ id_usuario: tr
 
 const diaristaFields = {
   id_usuario: positiveId,
+  data_nascimento: birthDate,
   descricao: z.string().trim().min(20).max(2000),
   frequencia_resposta: z.string().trim().max(50).nullable().optional(),
   qtd_max_comodos: z.coerce.number().int().positive().max(100),
