@@ -1,5 +1,5 @@
 import { BadRequestError, ConflictError } from '../../errors/index.js';
-import { checkinExpired } from '../agendamento/checkinExpirationPolicy.js';
+import { checkinClosed } from '../agendamento/checkinExpirationPolicy.js';
 
 export function cents(value) {
   const text = String(value);
@@ -19,7 +19,7 @@ export function splitPayment(value) {
 }
 
 export function assertPayable(appointment, phase) {
-  if (checkinExpired(appointment)) throw new ConflictError('Check-in expirado. Não é possível realizar novos pagamentos desta diária.');
+  if (checkinClosed(appointment)) throw new ConflictError('Prazo de chegada ou de confirmação encerrado. Não é possível realizar novos pagamentos desta diária.');
   if (phase === 'Entrada' && appointment.status === 'Aceito') return;
   const check = appointment.checkin_checkout?.[0];
   if (phase === 'Saldo' && appointment.status === 'Concluido' && check?.horario_checkout) return;

@@ -31,6 +31,6 @@ export const notificationSchemas = {
   AppNotification: { type: 'object', properties: {
     id: { type: 'string' }, id_agendamento: { type: 'integer' }, tipo: { type: 'string' }, titulo: { type: 'string' }, mensagem: { type: 'string' },
     criado_em: { type: 'string', format: 'date-time' }, lida: { type: 'boolean' },
-    acao: { type: 'string', enum: ['pagamento', 'diaria', 'acompanhar', 'avaliacao'] },
+    acao: { type: 'string', enum: ['pagamento', 'diaria', 'acompanhar', 'avaliacao', 'checkin'] },
   } },
 };

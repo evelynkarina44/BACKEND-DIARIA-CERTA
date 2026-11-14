@@ -35,18 +35,25 @@ test('check-in bloqueado antes do horário; liberado exatamente no início agend
   assert.equal(f.appointment.checkin_checkout.length, 0);
   f.setNow(start);
   const check = await f.service.requestCheckin(40, f.worker);
-  assert.equal(check.status_checkin, 'Iniciado');
-  assert.equal(check.horario_checkin.getTime(), start.getTime());
+  assert.equal(check.status_checkin, 'Checkin_solicitado');
+  assert.equal(check.horario_chegada.getTime(), start.getTime());
+  assert.equal(check.horario_checkin, undefined);
   assert.equal(check.status_pagamento, 'Pendente');
+  assert.equal(f.appointment.status, 'Aceito');
+  await f.service.confirmCheckin(40, { id_cliente: 2 });
+  assert.equal(check.horario_checkin.getTime(), start.getTime());
   assert.equal(f.appointment.status, 'Em_andamento');
 });
 
-test('check-in exige entrada aprovada, aceite e diarista titular', async () => {
+test('chegada exige aceite e diarista titular; início exige entrada aprovada e cliente titular', async () => {
   const f = fixture();
   await assert.rejects(() => f.service.requestCheckin(40, { id_cliente: 2 }), /Somente a diarista/);
   await assert.rejects(() => f.service.requestCheckin(40, { id_diarista: 99 }), /não pertence/);
   f.appointment.pagamento_parcela[0].status = 'Pendente';
-  await assert.rejects(() => f.service.requestCheckin(40, f.worker), /pagar a entrada/);
+  await f.service.requestCheckin(40, f.worker);
+  assert.equal(f.appointment.status, 'Aceito');
+  await assert.rejects(() => f.service.confirmCheckin(40, { id_cliente: 2 }), /entrada de 50%/);
+  await assert.rejects(() => f.service.confirmCheckin(40, f.worker), /Somente o cliente/);
   f.appointment.pagamento_parcela[0].status = 'Pago';
   for (const status of ['Pendente', 'Recusado', 'Cancelado', 'Expirado', 'Concluido']) {
     f.appointment.status = status;
@@ -57,20 +64,26 @@ test('check-in exige entrada aprovada, aceite e diarista titular', async () => {
 test('repetir check-in não duplica registros nem muda o horário inicial', async () => {
   const f = fixture();
   const first = await f.service.requestCheckin(40, f.worker);
-  const initialTime = first.horario_checkin.getTime();
-  f.setNow(new Date(initialTime + 60000));
+  const arrivalTime = first.horario_chegada.getTime();
+  const initialTime = arrivalTime + 60000;
+  f.setNow(new Date(initialTime));
   await f.service.requestCheckin(40, f.worker);
   await f.service.confirmPayment(40, { id_cliente: 2 });
   assert.equal(f.appointment.checkin_checkout.length, 1);
   assert.equal(first.horario_checkin.getTime(), initialTime);
+  assert.equal(first.horario_chegada.getTime(), arrivalTime);
+  f.setNow(new Date(initialTime + 60000));
+  await f.service.confirmCheckin(40, { id_cliente: 2 });
+  assert.equal(first.horario_checkin.getTime(), initialTime);
 });
 
-test('solicitação antiga de check-in pode ser iniciada pela diarista', async () => {
+test('solicitação antiga recebe chegada e ainda exige confirmação do cliente', async () => {
   const f = fixture();
   f.appointment.checkin_checkout.push({ id_check: 1, status_checkin: 'Checkin_solicitado' });
   await f.service.requestCheckin(40, f.worker);
   assert.equal(f.appointment.checkin_checkout.length, 1);
-  assert.equal(f.appointment.checkin_checkout[0].status_checkin, 'Iniciado');
+  assert.equal(f.appointment.checkin_checkout[0].status_checkin, 'Checkin_solicitado');
+  assert.equal(f.appointment.status, 'Aceito');
 });
 
 test('checkout só após início, pela diarista; libera saldo sem marcá-lo como pago', async () => {
@@ -78,6 +91,8 @@ test('checkout só após início, pela diarista; libera saldo sem marcá-lo como
   const payment = new PaymentService(f.database);
   await assert.rejects(() => f.service.checkout(40, f.worker), /não foi iniciado/);
   await f.service.requestCheckin(40, f.worker);
+  await assert.rejects(() => f.service.checkout(40, f.worker), /não foi iniciado/);
+  await f.service.confirmCheckin(40, { id_cliente: 2 });
   await assert.rejects(() => f.service.checkout(40, { id_cliente: 2 }), /Somente a diarista/);
   assert.equal(payment.summary(f.appointment).parcelas[1].pode_pagar, false);
   const end = new Date(combineDateAndTime(f.appointment.data_agendamento, f.appointment.horario_inicio).getTime() + 4 * 3600000);

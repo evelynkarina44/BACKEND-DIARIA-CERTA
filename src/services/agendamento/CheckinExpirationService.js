@@ -1,12 +1,13 @@
 import prisma from '../../lib/prisma.js';
 import { currentLocalDate } from '../../utils/dateTime.js';
-import { checkinExpired, CHECKIN_EXPIRATION_REASON } from './checkinExpirationPolicy.js';
+import { checkinClosed, confirmationExpired, CHECKIN_EXPIRATION_REASON, CLIENT_CONFIRMATION_EXPIRATION_REASON } from './checkinExpirationPolicy.js';
 
 // Executar sob a trava do agendamento, compartilhada com check-in e pagamento.
 export async function expireCheckinLocked(tx, appointment, now) {
-  if (appointment.status !== 'Aceito' || !checkinExpired(appointment, now)) return false;
-  await tx.agendamento.update({ where: { id_agendamento: appointment.id_agendamento }, data: { status: 'Expirado', respondido_em: now } });
-  await tx.ocorrencia_agendamento.create({ data: { id_agendamento: appointment.id_agendamento, motivo: 'outro', descricao: CHECKIN_EXPIRATION_REASON } });
+  if (appointment.status !== 'Aceito' || !checkinClosed(appointment, now)) return false;
+  const customerTimeout = confirmationExpired(appointment, now);
+  await tx.agendamento.update({ where: { id_agendamento: appointment.id_agendamento }, data: { status: customerTimeout ? 'Cancelado' : 'Expirado', respondido_em: now } });
+  await tx.ocorrencia_agendamento.create({ data: { id_agendamento: appointment.id_agendamento, motivo: 'outro', descricao: customerTimeout ? CLIENT_CONFIRMATION_EXPIRATION_REASON : CHECKIN_EXPIRATION_REASON } });
   await tx.pagamento_transacao.updateMany({
     where: { status: 'approved', parcela: { id_agendamento: appointment.id_agendamento, fase: 'Entrada' } },
     data: { estorno_pendente: true },

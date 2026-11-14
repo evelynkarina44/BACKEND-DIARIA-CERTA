@@ -26,6 +26,11 @@ const paginationParameters = [
 ];
 
 const bearerSecurity = [{ bearerAuth: [] }];
+const checkinConfirmationFields = {
+  aguardando_confirmacao_cliente: { type: 'boolean', description: 'Chegada registrada; o cliente ainda precisa confirmar o início.' },
+  confirmacao_cliente_expirada: { type: 'boolean', description: 'Encerramento por falta de confirmação do cliente, não ausência da diarista.' },
+  confirmacao_cliente_limite_em: { type: 'string', format: 'date-time', nullable: true, description: '30 minutos após a chegada registrada.' },
+};
 const json = (schema) => ({ 'application/json': { schema } });
 const schemaRef = (name) => ({ $ref: `#/components/schemas/${name}` });
 const responseRef = (name) => ({ $ref: `#/components/responses/${name}` });
@@ -463,6 +468,7 @@ paths['/api/agendamento/acompanhamento'] = {
         data: { type: 'array', items: { type: 'object', properties: {
           id_agendamento: { type: 'integer' }, status: schemaRef('AgendamentoStatus'),
           inicio_em: { type: 'string', format: 'date-time', nullable: true },
+          ...checkinConfirmationFields,
           checkin_expirado: { type: 'boolean' }, checkin_limite_em: { type: 'string', format: 'date-time', nullable: true },
           pessoa: { type: 'object', nullable: true, properties: { nome: { type: 'string' }, foto_perfil: { type: 'string', nullable: true } } },
           pagamento: { allOf: [schemaRef('PagamentoResumo')], nullable: true },
@@ -532,7 +538,8 @@ paths['/api/checkin-checkout/agendamento/{id}'] = {
 };
 
 for (const action of [
-  { path: 'solicitar', summary: 'Realizar check-in', operationId: 'solicitarCheckin', description: 'A diarista registra o início a partir do horário agendado e antes do limite de 30 minutos, com entrada paga e agendamento aceito. No limite ou após ele, sem início, o agendamento expira e a entrada aprovada entra na fila de estorno integral. Registra horario_checkin e altera para Em_andamento sem exigir confirmação adicional do cliente. Não cobra nem aprova pagamentos.' },
+  { path: 'solicitar', summary: 'Registrar chegada da diarista', operationId: 'solicitarCheckin', description: 'A diarista registra horario_chegada a partir do horário marcado e antes de 30 minutos. Mantém Aceito e Checkin_solicitado, sem iniciar o serviço. O cliente tem 30 minutos após a chegada para confirmar, com entrada aprovada. Não cobra nem aprova pagamento.' },
+  { path: 'confirmar-inicio', summary: 'Cliente confirma chegada e inicia diária', operationId: 'confirmarInicio', description: 'Exclusivo do cliente titular. Exige chegada registrada pela diarista, entrada de 50% aprovada e confirmação antes de 30 minutos da chegada. Registra horario_checkin e altera para Em_andamento. Sem confirmação no prazo, cancela por falta de confirmação do cliente e agenda estorno integral da entrada paga, sem registrar ausência da diarista.' },
   { path: 'confirmar-pagamento', summary: 'Confirmar presença e iniciar check-in', operationId: 'confirmarPagamento', description: 'Compatibilidade do endpoint antigo: exige entrada já aprovada pelo Mercado Pago. Não marca a diária como paga nem cobra outra parcela.' },
   { path: 'checkout', summary: 'Realizar check-out e liberar saldo', operationId: 'realizarCheckout', description: 'A diarista conclui um serviço iniciado. O saldo de 50% é liberado para pagamento separado pelo cliente.' },
 ]) {
@@ -860,6 +867,7 @@ components.schemas = {
   AgendamentoUpdate: objectSchema({ observacoes: nullableString(2000) }, [], { minProperties: 1 }),
   AgendamentoCancel: objectSchema({ descricao: nullableString(2000) }),
   Agendamento: objectSchema({
+    ...checkinConfirmationFields,
     checkin_expirado: { type: 'boolean' }, checkin_limite_em: { type: 'string', format: 'date-time', nullable: true },
     id_agendamento: positiveInteger, id_cliente: positiveInteger, id_diarista: positiveInteger, id_endereco: { ...positiveInteger, nullable: true }, id_combo_base: { ...positiveInteger, nullable: true },
     data_agendamento: date, horario_inicio: { ...time, nullable: true }, horario_fim: { ...time, nullable: true },
@@ -884,7 +892,7 @@ components.schemas = {
     id: positiveInteger, id_agendamento: positiveInteger, diarista_servico_id_diarista_servico: positiveInteger, preco: { type: 'number' },
   }, ['id', 'id_agendamento', 'diarista_servico_id_diarista_servico', 'preco'], { additionalProperties: true }),
   CheckinCheckout: objectSchema({
-    id_check: positiveInteger, id_agendamento: positiveInteger, horario_checkin: { type: 'string', format: 'date-time', nullable: true },
+    id_check: positiveInteger, id_agendamento: positiveInteger, horario_chegada: { type: 'string', format: 'date-time', nullable: true }, horario_checkin: { type: 'string', format: 'date-time', nullable: true },
     horario_checkout: { type: 'string', format: 'date-time', nullable: true },
     status_checkin: { type: 'string', enum: ['N_o_iniciado', 'Pago_legado', 'Checkin_solicitado', 'Aguardando_pagamento', 'Iniciado', 'Checkout_solicitado', 'Finalizado'] },
     status_pagamento: { type: 'string', enum: ['Pendente', 'Pago', 'Falhou'] }, pagamento_em: { type: 'string', format: 'date-time', nullable: true },

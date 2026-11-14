@@ -5,6 +5,7 @@ import { CheckinExpirationService, expireCheckinLocked } from '../src/services/a
 import { checkinDeadline, checkinExpired, CHECKIN_EXPIRATION_REASON } from '../src/services/agendamento/checkinExpirationPolicy.js';
 import { PaymentService } from '../src/services/pagamento/PaymentService.js';
 import { notificationEvents } from '../src/services/notificacao/notificationEvents.js';
+import { checkinExpirationInfo, confirmationDeadline, CLIENT_CONFIRMATION_EXPIRATION_REASON } from '../src/services/agendamento/checkinExpirationPolicy.js';
 
 function fixture(paid = true) {
   const appointment = {
@@ -45,6 +46,7 @@ test('tolerância em Brasília: 29min59s ainda permite, 30 minutos encerra', asy
   assert.equal(checkinExpired(f.appointment, f.now()), true);
   f.setNow(new Date('2026-11-11T11:29:59.999Z'));
   await f.workflow.requestCheckin(44, { id_diarista: 8 });
+  await f.workflow.confirmCheckin(44, { id_cliente: 2 });
   f.setNow(new Date('2026-11-12T15:00:00Z'));
   assert.equal(await expireCheckinLocked(f.db, f.appointment, f.now()), false);
   assert.equal((await f.workflow.checkout(44, { id_diarista: 8 })).status_checkin, 'Finalizado');
@@ -123,4 +125,61 @@ test('aprovação que chega depois do prazo entra na fila de estorno, mesmo ante
   });
   assert.equal(transactions[0].estorno_pendente, true);
   assert.equal(f.appointment.pagamento_parcela[0].status, 'Estorno_pendente');
+});
+
+test('chegada no prazo protege contra expiração original; cliente inicia depois do prazo original, dentro de sua janela', async () => {
+  const f = fixture();
+  f.setNow(new Date('2026-11-11T11:29:00Z'));
+  await f.workflow.requestCheckin(44, { id_diarista: 8 });
+  assert.equal(f.appointment.status, 'Aceito');
+  assert.equal(f.appointment.checkin_checkout[0].horario_checkin, undefined);
+  assert.equal(confirmationDeadline(f.appointment).toISOString(), '2026-11-11T11:59:00.000Z');
+  f.setNow(new Date('2026-11-11T11:31:00Z'));
+  await new CheckinExpirationService(f.db, f.now).run();
+  assert.equal(f.appointment.status, 'Aceito');
+  assert.equal(checkinExpired(f.appointment, f.now()), false);
+  await assert.rejects(() => f.workflow.checkout(44, { id_diarista: 8 }), /não foi iniciado/);
+  await f.workflow.confirmCheckin(44, { id_cliente: 2 });
+  assert.equal(f.appointment.status, 'Em_andamento');
+  assert.equal(f.appointment.checkin_checkout[0].horario_checkin.toISOString(), '2026-11-11T11:31:00.000Z');
+  assert.equal(f.appointment.pagamento_parcela[1].status, 'Pendente');
+});
+
+test('cliente sem resposta encerra como cancelamento por falta de confirmação e agenda estorno integral, não ausência', async () => {
+  const f = fixture();
+  f.setNow(new Date('2026-11-11T11:00:00Z'));
+  await f.workflow.requestCheckin(44, { id_diarista: 8 });
+  f.setNow(new Date('2026-11-11T11:10:00Z'));
+  await f.workflow.requestCheckin(44, { id_diarista: 8 });
+  assert.equal(confirmationDeadline(f.appointment).toISOString(), '2026-11-11T11:30:00.000Z', 'clique repetido não adia o prazo');
+  f.setNow(new Date('2026-11-11T11:30:00Z'));
+  await assert.rejects(() => f.workflow.confirmCheckin(44, { id_cliente: 2 }), /Confirmação do cliente expirada/);
+  assert.equal(f.appointment.status, 'Cancelado');
+  assert.equal(f.appointment.ocorrencia_agendamento[0].descricao, CLIENT_CONFIRMATION_EXPIRATION_REASON);
+  assert.equal(f.appointment.pagamento_parcela[0].status, 'Estorno_pendente');
+  assert.equal(f.appointment.pagamento_parcela[0].transacoes[0].estorno_pendente, true);
+  const info = checkinExpirationInfo(f.appointment, f.now());
+  assert.equal(info.checkin_expirado, false);
+  assert.equal(info.confirmacao_cliente_expirada, true);
+  const events = notificationEvents(f.appointment, 'CLIENTE', f.now());
+  assert.ok(events.some(event => event.tipo === 'confirmacao-expirada'));
+  assert.equal(events.some(event => event.tipo === 'checkin-expirado'), false);
+  await new CheckinExpirationService(f.db, f.now).run();
+  assert.equal(f.appointment.ocorrencia_agendamento.length, 1);
+});
+
+test('chegada sem entrada paga é permitida, mas confirmação e início permanecem bloqueados', async () => {
+  const f = fixture(false);
+  f.setNow(new Date('2026-11-11T11:00:00Z'));
+  await f.workflow.requestCheckin(44, { id_diarista: 8 });
+  await assert.rejects(() => f.workflow.confirmCheckin(44, { id_cliente: 2 }), /entrada de 50%/);
+  assert.equal(f.appointment.status, 'Aceito');
+  assert.equal(f.appointment.checkin_checkout[0].horario_checkin, undefined);
+  const events = notificationEvents(f.appointment, 'CLIENTE', f.now());
+  assert.equal(events.find(event => event.tipo === 'chegada').acao, 'pagamento');
+  f.appointment.pagamento_parcela[0].status = 'Pago';
+  const paidEvents = notificationEvents(f.appointment, 'CLIENTE', f.now());
+  assert.equal(paidEvents.find(event => event.tipo === 'chegada').acao, 'checkin');
+  await f.workflow.confirmCheckin(44, { id_cliente: 2 });
+  assert.equal(f.appointment.status, 'Em_andamento');
 });

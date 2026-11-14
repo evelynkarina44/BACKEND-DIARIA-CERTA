@@ -24,7 +24,7 @@ export class NotificationService {
       select: {
         id_agendamento: true, status: true, data_agendamento: true, horario_inicio: true, solicitado_em: true, respondido_em: true,
         ocorrencia_agendamento: { select: { descricao: true } },
-        checkin_checkout: { select: { horario_checkin: true, horario_checkout: true } },
+        checkin_checkout: { select: { horario_chegada: true, horario_checkin: true, horario_checkout: true, status_checkin: true } },
         avaliacao: { where: { autor_tipo: 'Cliente' }, select: { data_avaliacao: true } },
         pagamento_parcela: { select: { fase: true, status: true, atualizado_em: true, transacoes: { select: {
           status: true, criado_em: true, estorno_pendente: true, estornado_centavos: true, valor_centavos: true,

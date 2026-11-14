@@ -83,6 +83,7 @@ model checkin_checkout {
   id_check         Int                             @id @default(autoincrement())
   id_agendamento   Int                             @unique(map: "uq_checkin_checkout_agendamento")
   horario_checkin  DateTime?                       @db.Timestamp(0)
+  horario_chegada  DateTime?                       @db.Timestamp(0)
   horario_checkout DateTime?                       @db.Timestamp(0)
   status_checkin   checkin_checkout_status_checkin @default(N_o_iniciado)
   status_pagamento pagamento_status                @default(Pendente)

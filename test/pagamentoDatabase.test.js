@@ -49,7 +49,7 @@ test('MySQL e Mercado Pago simulado: duas parcelas, check-in, saldo, duplicidade
       };
       const service = new PaymentService(database, provider);
       const checkin = new CheckinCheckoutWorkflowService(database);
-      const wall = new Date(Date.now() - 30 * 60000 - Number(process.env.APP_TIMEZONE_OFFSET_MINUTES || 180) * 60000);
+      const wall = new Date(Date.now() - 5 * 60000 - Number(process.env.APP_TIMEZONE_OFFSET_MINUTES || 180) * 60000);
       const day = new Date(wall.toISOString().slice(0, 10));
       const start = new Date('1970-01-01T' + wall.toISOString().slice(11, 16) + ':00Z');
       const appointmentData = { id_cliente: customer.id_cliente, id_diarista: worker.id_diarista, data_agendamento: day, horario_inicio: start, horario_fim: new Date('1970-01-01T23:59:00Z'), valor_estimado: '99.99' };
@@ -57,7 +57,10 @@ test('MySQL e Mercado Pago simulado: duas parcelas, check-in, saldo, duplicidade
       const id = appointment.id_agendamento;
       await assert.rejects(() => service.checkout(id, 'Entrada', clientAuth), /após o aceite/);
       await tx.agendamento.update({ where: { id_agendamento: id }, data: { status: 'Aceito' } });
-      await assert.rejects(() => checkin.requestCheckin(id, workerAuth), /pagar a entrada/);
+      const arrival = await checkin.requestCheckin(id, workerAuth);
+      assert.equal(arrival.status_checkin, 'Checkin_solicitado');
+      assert.equal(arrival.horario_checkin, null);
+      await assert.rejects(() => checkin.confirmCheckin(id, clientAuth), /entrada de 50%/);
       await service.checkout(id, 'Entrada', clientAuth);
       await service.checkout(id, 'Entrada', clientAuth);
       assert.equal(preferences, 1, 'Repetir o clique reutiliza o checkout');

@@ -50,6 +50,8 @@ export const pagamentoSchemas = {
   PagamentoResumo: { type: 'object', required: ['id_agendamento', 'status_agendamento', 'valor_total', 'moeda', 'quitado', 'parcelas'], properties: {
     id_agendamento: { type: 'integer' }, status_agendamento: ref('AgendamentoStatus'), valor_total: { type: 'number' },
     checkin_expirado: { type: 'boolean' }, checkin_limite_em: { type: 'string', format: 'date-time', nullable: true },
+    confirmacao_cliente_expirada: { type: 'boolean' }, aguardando_confirmacao_cliente: { type: 'boolean' },
+    confirmacao_cliente_limite_em: { type: 'string', format: 'date-time', nullable: true },
     moeda: { type: 'string', enum: ['BRL'] }, quitado: { type: 'boolean' }, parcelas: { type: 'array', items: ref('PagamentoParcela') },
     pode_avaliar: { type: 'boolean', description: 'Diária concluída, duas parcelas pagas e ainda não avaliada pelo cliente.' },
     avaliacao_cliente: { type: 'object', nullable: true, properties: { id_avaliacao: { type: 'integer' }, nota: { type: 'number' }, comentario: { type: 'string', nullable: true } } },

@@ -43,7 +43,7 @@ export class AgendamentoTrackingService {
       diarista: { select: { usuario: { select: { nome: true, foto_perfil: true } } } },
       endereco: { select: { logradouro: true, numero: true, bairro: true, cidade: true, estado: true } },
       agendamento_servico: { select: { diarista_servico: { select: { servico: { select: { nome_servico: true } } } } } },
-      checkin_checkout: { select: { horario_checkin: true, horario_checkout: true, status_checkin: true } },
+      checkin_checkout: { select: { horario_chegada: true, horario_checkin: true, horario_checkout: true, status_checkin: true } },
       avaliacao: { where: { autor_tipo: 'Cliente' }, select: { id_avaliacao: true, nota: true, comentario: true } },
       ocorrencia_agendamento: { select: { descricao: true } },
       pagamento_parcela: { include: { transacoes: { select: { estorno_pendente: true } } } },
