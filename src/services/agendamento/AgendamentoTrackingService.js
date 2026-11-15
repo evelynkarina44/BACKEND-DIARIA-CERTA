@@ -13,7 +13,7 @@ export class AgendamentoTrackingService {
     this.payments = new PaymentService(database);
   }
 
-  async list({ page = 1, limit = 20 } = {}, auth) {
+  async list({ page = 1, limit = 20, status } = {}, auth) {
     const customer = auth?.activeProfile === 'CLIENTE' && auth.id_cliente;
     const worker = auth?.activeProfile === 'DIARISTA' && auth.id_diarista;
     if (!customer && !worker) throw new ForbiddenError('Selecione um perfil de cliente ou diarista.');
@@ -22,6 +22,7 @@ export class AgendamentoTrackingService {
     const twoDaysAgo = new Date(now.getTime() - 2 * 86400000);
     const where = {
       ...(customer ? { id_cliente: auth.id_cliente } : { id_diarista: auth.id_diarista }),
+      ...(status === 'Aceito' ? { status: 'Aceito' } : {}),
       OR: [
         { status: { in: ['Pendente', 'Aceito', 'Em_andamento'] } },
         { status: 'Concluido', OR: [
@@ -37,7 +38,7 @@ export class AgendamentoTrackingService {
       ],
     };
     const select = {
-      id_agendamento: true, status: true, data_agendamento: true, horario_inicio: true,
+      id_agendamento: true, numero_diarista: true, status: true, data_agendamento: true, horario_inicio: true,
       valor_estimado: true, expira_em: true,
       cliente: { select: { usuario: { select: { nome: true, foto_perfil: true } } } },
       diarista: { select: { usuario: { select: { nome: true, foto_perfil: true } } } },
@@ -56,6 +57,7 @@ export class AgendamentoTrackingService {
     return {
       data: appointments.map(appointment => ({
         id_agendamento: appointment.id_agendamento,
+        numero_diarista: appointment.numero_diarista,
         status: appointment.status,
         ...checkinExpirationInfo(appointment, now),
         data_agendamento: appointment.data_agendamento,

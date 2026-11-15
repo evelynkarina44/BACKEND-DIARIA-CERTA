@@ -63,7 +63,7 @@ function publicProfileInclude() {
 }
 
 function present(profile, serviceCatalog = [], distanceKm = null) {
-  const { agendamento: responseHistory, data_nascimento: _privateBirthDate, ...publicProfile } = profile;
+  const { agendamento: responseHistory, data_nascimento: _privateBirthDate, ultimo_numero_diaria: _internalCounter, ...publicProfile } = profile;
   const prices = profile.diarista_servico.map((item) => Number(item.preco));
   const offeredServiceIds = new Set(profile.diarista_servico.map((item) => item.id_servico));
   const publicAddresses = profile.endereco.map(({ cep: _cep, ...address }) => address);

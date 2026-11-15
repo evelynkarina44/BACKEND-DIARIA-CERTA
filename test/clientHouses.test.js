@@ -58,7 +58,7 @@ function bookingScenario() {
   const data = createAgendamentoSchema.parse({ id_diarista: 8, id_endereco: 22, data_agendamento: '2099-01-01', horario_inicio: '09:00', horario_fim: '10:00', qtd_comodos: 1, tamanho_residencia: 'pequena', servicos: [{ id_diarista_servico: 3 }] });
   let stored;
   const database = {
-    diarista: { findUnique: async () => ({ id_usuario: 12, usuario: { ativo: true, bloqueado: false }, combo_base: [] }) },
+    diarista: { update: async () => ({ ultimo_numero_diaria: 1 }), findUnique: async () => ({ id_usuario: 12, usuario: { ativo: true, bloqueado: false }, combo_base: [] }) },
     endereco: { findUnique: async () => ({ ...house, id_endereco: 22 }) },
     diarista_servico: { findMany: async () => [{ id_diarista_servico: 3, id_diarista: 8, id_servico: 4, ativo: true, preco: 100 }] },
     disponibilidade_diarista: { findMany: async () => [{ horario_inicio: data.horario_inicio, horario_fim: data.horario_fim }] },

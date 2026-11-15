@@ -37,10 +37,18 @@ test('GET /health confirma que a aplicação inicializou', async () => {
   assert.deepEqual(await response.json(), { status: 'ok' });
 });
 
+test('consulta do perfil que contém agenda não permite cache de respostas antigas', async () => {
+  // ID inválido exercita middleware e validação sem consultar o banco real.
+  const response = await fetch(`${baseUrl}/api/diarista/invalido`);
+  assert.equal(response.status, 422);
+  assert.equal(response.headers.get('cache-control'), 'no-store');
+});
+
 test('pagamentos exigem JWT e webhook sem configuração ou assinatura não aprova nada', async () => {
   for (const [method, path] of [
     ['GET', '/api/pagamento/agendamento/1'],
     ['GET', '/api/agendamento/acompanhamento'],
+    ['GET', '/api/agendamento/1/localizacao'],
     ['GET', '/api/notificacoes'],
     ['PUT', '/api/notificacoes/' + 'a'.repeat(64) + '/lida'],
     ['POST', '/api/notificacoes/marcar-todas-lidas'],

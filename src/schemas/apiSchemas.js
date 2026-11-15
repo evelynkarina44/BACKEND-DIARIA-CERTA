@@ -25,6 +25,10 @@ export const paginationSchema = z.object({
   limit: z.coerce.number().int().positive().max(100).default(20),
 });
 
+export const trackingQuerySchema = paginationSchema.extend({
+  status: z.literal('Aceito').optional(),
+});
+
 export const loginSchema = z.object({
   email: z.string().trim().email().max(100).transform((value) => value.toLowerCase()),
   senha: z.string().min(1).max(100),

@@ -14,7 +14,11 @@ router.get('/', optionalAuthenticate, (req, res, next) => {
   res.vary('Authorization');
   next();
 }, validate(diaristaSearchSchema, 'query'), controller.listarDiaristas);
-router.get('/:id', validate(idSchema, 'params'), controller.buscarDiaristaPorId);
+router.get('/:id', (req, res, next) => {
+  // O perfil contém a agenda: não reutilizar uma versão anterior à última edição.
+  res.set('Cache-Control', 'no-store');
+  next();
+}, validate(idSchema, 'params'), controller.buscarDiaristaPorId);
 router.post('/', authenticate, validate(createDiaristaSchema), controller.criarDiarista);
 router.get('/:id/estatisticas', authenticate, authorizeRoles('diarista'), validate(idSchema, 'params'), statsController.buscar);
 router.put('/:id', authenticate, authorizeRoles('diarista'), validate(idSchema, 'params'), validate(updateDiaristaSchema), controller.atualizarDiarista);

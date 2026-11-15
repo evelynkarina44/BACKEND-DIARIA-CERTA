@@ -17,6 +17,7 @@ test('MySQL: leitura persiste entre instâncias, separa perfis e não marca avis
       const worker = await tx.diarista.create({ data: { id_usuario: user.id_usuario, descricao: 'Teste revertido', qtd_max_comodos: 5 } });
       // Fixture apenas para testar isolamento de leitura no mesmo usuário, não contratação real.
       const appointment = await tx.agendamento.create({ data: {
+        numero_diarista: 1,
         id_cliente: customer.id_cliente, id_diarista: worker.id_diarista, data_agendamento: new Date('2026-11-02'),
         status: 'Aceito', solicitado_em: new Date(Date.now() - 60000), respondido_em: new Date(Date.now() - 30000),
       } });

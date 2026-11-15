@@ -22,7 +22,7 @@ export class NotificationService {
         { status: 'Aceito', data_agendamento: { gte: new Date(since.toISOString().slice(0, 10)) } },
       ] },
       select: {
-        id_agendamento: true, status: true, data_agendamento: true, horario_inicio: true, solicitado_em: true, respondido_em: true,
+        id_agendamento: true, numero_diarista: true, status: true, data_agendamento: true, horario_inicio: true, solicitado_em: true, respondido_em: true,
         ocorrencia_agendamento: { select: { descricao: true } },
         checkin_checkout: { select: { horario_chegada: true, horario_checkin: true, horario_checkout: true, status_checkin: true } },
         avaliacao: { where: { autor_tipo: 'Cliente' }, select: { data_avaliacao: true } },

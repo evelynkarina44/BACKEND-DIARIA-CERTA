@@ -4,11 +4,11 @@ import { AgendamentoWorkflowService } from '../src/services/agendamento/Agendame
 import { createAgendamentoSchema } from '../src/schemas/apiSchemas.js';
 
 // Repositório e trava simulados: nenhum agendamento real é criado nestes testes.
-function fixture() {
+function fixture(firstGlobalId = 1) {
   const data = createAgendamentoSchema.parse({ id_diarista: 8, id_endereco: 2, data_agendamento: '2099-01-01', horario_inicio: '09:00', horario_fim: '10:00', qtd_comodos: 4, tamanho_residencia: 'media', servicos: [{ id_diarista_servico: 3 }] });
   const auth = { id_usuario: 1, id_cliente: 2 };
   const rows = [];
-  let locked = false, tail = Promise.resolve();
+  let locked = false, tail = Promise.resolve(), lastNumber = 0;
   function matches(row, where) {
     return Object.entries(where).every(([key, value]) => {
       if (key === 'OR') return value.some((branch) => matches(row, branch));
@@ -22,7 +22,7 @@ function fixture() {
   }
   const tx = {
     $queryRaw: async () => { locked = true; return []; },
-    diarista: { findUnique: async () => ({ id_usuario: 12, usuario: { ativo: true, bloqueado: false }, combo_base: [] }) },
+    diarista: { update: async () => ({ ultimo_numero_diaria: ++lastNumber }), findUnique: async () => ({ id_usuario: 12, usuario: { ativo: true, bloqueado: false }, combo_base: [] }) },
     endereco: { findUnique: async () => ({ id_cliente: auth.id_cliente }) },
     diarista_servico: { findMany: async () => [{ id_diarista_servico: 3, id_diarista: 8, id_servico: 4, ativo: true, preco: 100 }] },
     disponibilidade_diarista: { findMany: async () => [{ horario_inicio: data.horario_inicio, horario_fim: data.horario_fim }] },
@@ -33,7 +33,7 @@ function fixture() {
         return rows.filter((row) => matches(row, where));
       },
       create: async ({ data: input }) => {
-        const row = { ...input, id_agendamento: rows.length + 1, status: 'Pendente', agendamento_servico: [] };
+        const row = { ...input, id_agendamento: rows.length + firstGlobalId, status: 'Pendente', agendamento_servico: [] };
         rows.push(row);
         return row;
       },
@@ -47,6 +47,18 @@ function fixture() {
   } };
   return { data, auth, rows, service: new AgendamentoWorkflowService(database) };
 }
+
+test('primeira diária da profissional é número 1 mesmo com ID global 12; cancelamento não renumera', async () => {
+  const { service, data, auth, rows } = fixture(12);
+  const first = await service.create(data, auth);
+  assert.equal(first.id_agendamento,12);
+  assert.equal(first.numero_diarista,1);
+  rows[0].status='Cancelado';
+  const second=await service.create(data,auth);
+  assert.equal(second.id_agendamento,13);
+  assert.equal(second.numero_diarista,2);
+  assert.equal(rows[0].numero_diarista,1);
+});
 
 test('bloqueia pedido repetido, mesmo alterando serviços, combo, endereço ou observações', async () => {
   const { service, data, auth, rows } = fixture();

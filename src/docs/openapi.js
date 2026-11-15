@@ -462,11 +462,11 @@ paths['/api/agendamento/acompanhamento'] = {
   get: {
     tags: ['Agendamentos'], summary: 'Acompanhar solicitações, execução e pagamentos', operationId: 'acompanharAgendamentos',
     description: 'Somente dados do perfil ativo. Inclui agendamentos ativos, pagamentos/avaliações pendentes, conclusões dos últimos 7 dias e recusas/cancelamentos/expirações das últimas 48 horas. Consulta estados locais sem criar cobranças, sincronizar pagamentos ou iniciar estornos.',
-    parameters: paginationParameters, security: bearerSecurity,
+    parameters: [...paginationParameters, { name: 'status', in: 'query', description: 'Opcional: filtra somente diárias aceitas antes de paginar, sem removê-las do histórico.', schema: { type: 'string', enum: ['Aceito'] } }], security: bearerSecurity,
     responses: { '200': successResponse('Acompanhamento paginado.', {
       type: 'object', properties: {
         data: { type: 'array', items: { type: 'object', properties: {
-          id_agendamento: { type: 'integer' }, status: schemaRef('AgendamentoStatus'),
+          id_agendamento: { type: 'integer' }, numero_diarista: { type: 'integer', minimum: 1 }, status: schemaRef('AgendamentoStatus'),
           inicio_em: { type: 'string', format: 'date-time', nullable: true },
           ...checkinConfirmationFields,
           checkin_expirado: { type: 'boolean' }, checkin_limite_em: { type: 'string', format: 'date-time', nullable: true },
@@ -477,6 +477,22 @@ paths['/api/agendamento/acompanhamento'] = {
         atualizado_em: { type: 'string', format: 'date-time' },
       },
     }), ...standardErrors({ authenticated: true, forbidden: true }) },
+  },
+};
+
+paths['/api/agendamento/{id}/localizacao'] = {
+  get: {
+    tags: ['Agendamentos'], summary: 'Consultar localização aproximada da diária', operationId: 'localizacaoAgendamento',
+    description: 'Somente a diarista destinatária com perfil ativo pode consultar. Distância em linha reta entre CEPs, não distância de rota ou GPS. Retorna null quando a geocodificação não estiver disponível.',
+    parameters: [id], security: bearerSecurity,
+    responses: {
+      '200': successResponse('Localização aproximada.', { type: 'object', required: ['distancia_km', 'ponto_destino', 'precisao'], properties: {
+        distancia_km: { type: 'number', nullable: true, minimum: 0 },
+        precisao: { type: 'string', enum: ['cep'] },
+        ponto_destino: { type: 'object', nullable: true, properties: { latitude: { type: 'number' }, longitude: { type: 'number' } } },
+      } }),
+      ...standardErrors({ authenticated: true, forbidden: true, notFound: true }),
+    },
   },
 };
 
@@ -867,6 +883,7 @@ components.schemas = {
   AgendamentoUpdate: objectSchema({ observacoes: nullableString(2000) }, [], { minProperties: 1 }),
   AgendamentoCancel: objectSchema({ descricao: nullableString(2000) }),
   Agendamento: objectSchema({
+    numero_diarista: { type: 'integer', minimum: 1, description: 'Número permanente por diarista; ID global permanece como chave das operações.' },
     ...checkinConfirmationFields,
     checkin_expirado: { type: 'boolean' }, checkin_limite_em: { type: 'string', format: 'date-time', nullable: true },
     id_agendamento: positiveInteger, id_cliente: positiveInteger, id_diarista: positiveInteger, id_endereco: { ...positiveInteger, nullable: true }, id_combo_base: { ...positiveInteger, nullable: true },

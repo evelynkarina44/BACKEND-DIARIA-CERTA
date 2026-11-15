@@ -12,6 +12,7 @@ function scenario() {
     disponibilidade_diarista: { findMany: async () => [{ horario_inicio: data.horario_inicio, horario_fim: data.horario_fim }] },
     agendamento: { findMany: async () => [] },
   };
+  database.diarista.update = async () => ({ ultimo_numero_diaria: 1 });
   return { data, database, auth: { id_usuario: 1, id_cliente: 2 } };
 }
 

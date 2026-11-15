@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SaveMonthlyAvailabilityService } from '../src/services/disponibilidadeDiarista/SaveMonthlyAvailabilityService.js';
 import { saveMonthlyAvailabilitySchema } from '../src/schemas/apiSchemas.js';
+import { DiaristaSearchService } from '../src/services/diarista/DiaristaSearchService.js';
 
 const parse = (dias = ['2099-01-12'], horarios = ['09:00']) => saveMonthlyAvailabilitySchema.parse({ mes: '2099-01', dias, horarios });
 const slot = (id, day, time, worker = 8) => ({ id_agenda: id, id_diarista: worker, dia_semana: new Date(`${day}T00:00:00Z`), horario_inicio: new Date(`1970-01-01T${time}:00Z`), horario_fim: new Date(new Date(`1970-01-01T${time}:00Z`).getTime() + 3600000), disponivel: true });
@@ -53,6 +54,35 @@ test('alteração de 09h para 09h30 dispensa apagar o restante da agenda', async
   await f.service.execute(parse(undefined, ['09:30']), { id_diarista: 8 });
   assert.equal(f.rows().length, 1);
   assert.equal(f.rows()[0].horario_inicio.toISOString().slice(11, 16), '09:30');
+});
+
+test('agenda salva fica disponível integralmente no perfil consultado pelo cliente, inclusive novos dias e horários', async () => {
+  const f = fixture([slot(1, '2099-01-12', '09:00')]);
+  const publicApi = new DiaristaSearchService({
+    diarista: { findUnique: async ({ where, include }) => {
+      const availability = include.disponibilidade_diarista;
+      assert.equal(availability.take, undefined, 'não truncar a agenda do mês');
+      return {
+        id_diarista: where.id_diarista, usuario: { nome: 'Profissional de teste' },
+        endereco: [], diarista_servico: [], combo_base: [], avaliacao: [], agendamento: [],
+        disponibilidade_diarista: f.rows().filter(item => item.id_diarista === where.id_diarista &&
+          item.disponivel === availability.where.disponivel && item.dia_semana >= availability.where.dia_semana.gte),
+      };
+    } },
+    servico: { findMany: async () => [] },
+  });
+  assert.equal((await publicApi.find(8)).disponibilidade_diarista.length, 1);
+  const days = Array.from({ length: 24 }, (_, i) => `2099-01-${String(i + 1).padStart(2, '0')}`);
+  const saved = await f.service.execute(parse(days, ['07:00', '09:00', '11:00', '13:00', '15:00']), { id_diarista: 8 });
+  const visible = JSON.parse(JSON.stringify(await publicApi.find(8))).disponibilidade_diarista;
+  assert.equal(saved.length, 120);
+  assert.equal(visible.length, 120);
+  assert.ok(visible.some(item => item.dia_semana.startsWith('2099-01-24') && item.horario_inicio.includes('15:00:00')));
+  await f.service.execute(parse(['2099-01-25'], ['10:30']), { id_diarista: 8 });
+  const updated = JSON.parse(JSON.stringify(await publicApi.find(8))).disponibilidade_diarista;
+  assert.equal(updated.length, 1);
+  assert.ok(updated[0].dia_semana.startsWith('2099-01-25'));
+  assert.ok(updated[0].horario_inicio.includes('10:30:00'));
 });
 
 test('falha durante a gravação restaura as disponibilidades anteriores', async () => {

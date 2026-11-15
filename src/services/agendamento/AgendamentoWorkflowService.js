@@ -5,6 +5,8 @@ import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '.
 import { combineDateAndTime, currentLocalDate } from '../../utils/dateTime.js';
 import { findBookingConflict, findDuplicateRequest, lockDiarista } from './availabilityPolicy.js';
 import { checkinExpirationInfo } from './checkinExpirationPolicy.js';
+import { AppointmentLocationService } from './AppointmentLocationService.js';
+import { nextWorkerBookingNumber } from './bookingNumber.js';
 
 const agendamentoInclude = {
   cliente: { include: { usuario: { select: { nome: true, foto_perfil: true, telefone: true } } } },
@@ -36,7 +38,10 @@ function present(appointment) {
 }
 
 export class AgendamentoWorkflowService {
-  constructor(database = prisma) { this.database = database; }
+  constructor(database = prisma, geocode) {
+    this.database = database;
+    this.locations = new AppointmentLocationService(database, geocode);
+  }
 
   async expirePending() {
     return this.database.agendamento.updateMany({
@@ -155,9 +160,11 @@ export class AgendamentoWorkflowService {
     }
     const pricing = await this.validateAndPrice(data, auth);
     const expira_em = new Date(Date.now() + 48 * 60 * 60 * 1000);
+    const numero_diarista = await nextWorkerBookingNumber(this.database, data.id_diarista);
     const appointment = await this.database.agendamento.create({
       data: {
         id_cliente: auth.id_cliente,
+        numero_diarista,
         id_diarista: data.id_diarista,
         id_endereco: data.id_endereco,
         id_combo_base: pricing.combo_aplicado,
@@ -203,7 +210,12 @@ export class AgendamentoWorkflowService {
       this.database.agendamento.findMany({ where, include: agendamentoInclude, skip: (page - 1) * limit, take: limit, orderBy: [{ data_agendamento: 'desc' }, { horario_inicio: 'desc' }] }),
       this.database.agendamento.count({ where }),
     ]);
-    return { data: data.map(present), pagination: { page, limit, total, pages: Math.ceil(total / limit) } };
+    const locations = visao === 'solicitacoes' && auth.id_diarista
+      ? await this.locations.describe(data, auth.id_diarista) : [];
+    return {
+      data: data.map((item, index) => ({ ...present(item), ...(locations[index] ? { distancia_km: locations[index].distancia_km } : {}) })),
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    };
   }
 
   async find(id, auth) {

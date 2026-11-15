@@ -9,6 +9,7 @@ datasource db {
 
 model agendamento {
   id_agendamento         Int                      @id @default(autoincrement())
+  numero_diarista        Int
   id_cliente             Int
   id_diarista            Int
   id_endereco            Int?
@@ -37,6 +38,7 @@ model agendamento {
   pagamento_parcela      pagamento_parcela[]
 
   @@index([id_cliente], map: "fk_agendamento_cliente")
+  @@unique([id_diarista, numero_diarista], map: "uq_diaria_numero_diarista")
   @@index([id_diarista], map: "fk_agendamento_diarista")
   @@index([id_endereco], map: "fk_agendamento_endereco")
   @@index([id_combo_base], map: "fk_agendamento_combo_base")
@@ -192,6 +194,7 @@ model denuncia {
 }
 
 model diarista {
+  ultimo_numero_diaria    Int                        @default(0)
   id_diarista              Int                        @id @default(autoincrement())
   id_usuario               Int                        @unique(map: "uq_diarista_usuario")
   data_nascimento         DateTime?                  @db.Date

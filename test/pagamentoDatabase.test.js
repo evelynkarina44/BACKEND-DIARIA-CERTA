@@ -53,7 +53,7 @@ test('MySQL e Mercado Pago simulado: duas parcelas, check-in, saldo, duplicidade
       const day = new Date(wall.toISOString().slice(0, 10));
       const start = new Date('1970-01-01T' + wall.toISOString().slice(11, 16) + ':00Z');
       const appointmentData = { id_cliente: customer.id_cliente, id_diarista: worker.id_diarista, data_agendamento: day, horario_inicio: start, horario_fim: new Date('1970-01-01T23:59:00Z'), valor_estimado: '99.99' };
-      const appointment = await tx.agendamento.create({ data: appointmentData });
+      const appointment = await tx.agendamento.create({ data: { ...appointmentData, numero_diarista: 1 } });
       const id = appointment.id_agendamento;
       await assert.rejects(() => service.checkout(id, 'Entrada', clientAuth), /após o aceite/);
       await tx.agendamento.update({ where: { id_agendamento: id }, data: { status: 'Aceito' } });
@@ -123,7 +123,7 @@ test('MySQL e Mercado Pago simulado: duas parcelas, check-in, saldo, duplicidade
       assert.equal(refunds, 1);
       assert.equal((await service.get(id, clientAuth)).quitado, true, 'Estorno da duplicidade não retira o pagamento válido');
 
-      const second = await tx.agendamento.create({ data: { ...appointmentData, status: 'Aceito' } });
+      const second = await tx.agendamento.create({ data: { ...appointmentData, numero_diarista: 2, status: 'Aceito' } });
       await service.checkout(second.id_agendamento, 'Entrada', clientAuth);
       const secondEntry = await tx.pagamento_parcela.findUnique({ where: { id_agendamento_fase: { id_agendamento: second.id_agendamento, fase: 'Entrada' } } });
       approved('1004', secondEntry); await service.reconcile('1004');

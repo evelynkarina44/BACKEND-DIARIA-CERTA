@@ -5,7 +5,7 @@ import { checkinExpired, checkinDeadline, confirmationExpired, confirmationDeadl
 // Um ID por evento de negócio: consultas e webhooks repetidos não recriam avisos.
 export function notificationEvents(a, profile, now = new Date()) {
   const customer = profile === 'CLIENTE';
-  const reference = 'Diária #' + a.id_agendamento + ' de ' + a.data_agendamento.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+  const reference = 'Diária #' + (customer ? a.id_agendamento : a.numero_diarista ?? '—') + ' de ' + a.data_agendamento.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
   const events = [];
   const expiredCheckin = checkinExpired(a, now);
   const expiredConfirmation = confirmationExpired(a, now);
