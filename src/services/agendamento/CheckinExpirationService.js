@@ -22,7 +22,11 @@ export class CheckinExpirationService {
   constructor(database = prisma, clock = () => new Date()) { this.database = database; this.clock = clock; }
   async run() {
     const candidates = await this.database.agendamento.findMany({
-      where: { status: 'Aceito', data_agendamento: { lte: currentLocalDate() }, horario_inicio: { not: null },
+      where: { status: 'Aceito', horario_inicio: { not: null },
+        OR: [
+          { data_agendamento: { lte: currentLocalDate() } },
+          { checkin_checkout: { some: { horario_chegada: { lte: new Date(this.clock().getTime() - 30 * 60000) } } } },
+        ],
         checkin_checkout: { none: { OR: [{ horario_checkin: { not: null } }, { status_checkin: { in: ['Iniciado', 'Finalizado'] } }] } } },
       select: { id_agendamento: true }, orderBy: [{ data_agendamento: 'asc' }, { horario_inicio: 'asc' }], take: 100,
     });

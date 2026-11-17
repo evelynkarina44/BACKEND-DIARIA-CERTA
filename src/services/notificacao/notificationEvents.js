@@ -39,7 +39,7 @@ export function notificationEvents(a, profile, now = new Date()) {
       add(p.fase + '-pago', final ? 'Pagamento integral confirmado' : p.fase === 'Entrada' ? 'Entrada de 50% confirmada' : 'Saldo de 50% confirmado',
         final ? customer ? 'As duas parcelas foram aprovadas. Confira a avaliação da diarista.' : 'As duas parcelas foram aprovadas; os valores são recebidos pela plataforma.'
           : p.fase === 'Saldo' ? 'O saldo desta parcela foi aprovado. Confira a situação das duas parcelas.' : customer ? 'Aguarde o check-in no horário combinado.' : 'O cliente pagou a entrada. O check-in será liberado no horário combinado.',
-        approved?.criado_em ?? p.atualizado_em, final && customer && a.status === 'Concluido' && !(a.avaliacao ?? []).length ? 'avaliacao' : customer && arrived && a.status === 'Aceito' && !expiredConfirmation ? 'checkin' : target);
+        approved?.criado_em ?? p.atualizado_em, final && customer && a.status === 'Concluido' && !(a.avaliacao ?? []).some(review => !review.autor_tipo || review.autor_tipo === 'Cliente') ? 'avaliacao' : customer && arrived && a.status === 'Aceito' && !expiredConfirmation ? 'checkin' : target);
     }
     if (p.status === 'Estorno_pendente' || p.transacoes?.some(t => t.estorno_pendente)) add(p.fase + '-estorno-pendente', 'Estorno em processamento', 'A devolução depende do processamento do Mercado Pago.', p.atualizado_em);
     if (p.status === 'Estornado') add(p.fase + '-estornado', 'Pagamento estornado', 'O provedor confirmou o estorno desta parcela.', p.atualizado_em);
@@ -56,7 +56,11 @@ export function notificationEvents(a, profile, now = new Date()) {
     customer ? 'Horário da sua diária' : 'Hora de registrar sua chegada',
     customer ? 'Aguarde a diarista registrar a chegada e confirme o início pelo aplicativo.' : 'Abra a diária e toque em Cheguei. O cliente deverá confirmar antes do início.',
     combineDateAndTime(a.data_agendamento, a.horario_inicio));
+  const customerReview = a.avaliacao?.find(review => !review.autor_tipo || review.autor_tipo === 'Cliente');
+  const workerReview = a.avaliacao?.find(review => review.autor_tipo === 'Diarista');
   add('avaliacao', customer ? 'Avaliação registrada' : 'Você recebeu uma avaliação',
-    customer ? 'Sua avaliação da diarista foi salva.' : 'O cliente avaliou o serviço desta diária.', a.avaliacao?.[0]?.data_avaliacao);
+    customer ? 'Sua avaliação da diarista foi salva.' : 'O cliente avaliou o serviço desta diária.', customerReview?.data_avaliacao);
+  add('avaliacao-cliente', customer ? 'Você recebeu uma avaliação' : 'Avaliação do cliente registrada',
+    customer ? 'A diarista avaliou você. Confira o comentário na página inicial ou no seu perfil.' : 'Sua avaliação do cliente foi salva.', workerReview?.data_avaliacao);
   return events;
 }

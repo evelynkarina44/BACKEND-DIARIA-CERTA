@@ -49,7 +49,6 @@ export class CheckinCheckoutWorkflowService {
       if (appointment.status !== 'Aceito') throw new ConflictError('O agendamento precisa estar aceito');
       const startsAt = scheduledAt(appointment);
       if (!startsAt) throw new BadRequestError('Agendamento legado sem horário definido');
-      if (this.clock().getTime() < startsAt.getTime()) throw new ConflictError('Check-in disponível a partir do horário agendado.');
       if (check && !['N_o_iniciado', 'Checkin_solicitado', 'Aguardando_pagamento'].includes(check.status_checkin)) {
         throw new ConflictError('Check-in já realizado');
       }
@@ -82,7 +81,7 @@ export class CheckinCheckoutWorkflowService {
         throw new ConflictError('Aguarde a diarista registrar a chegada antes de confirmar o início.');
       }
       const startsAt = scheduledAt(appointment);
-      if (!startsAt || this.clock().getTime() < startsAt.getTime()) throw new ConflictError('Check-in disponível a partir do horário agendado.');
+      if (!startsAt) throw new BadRequestError('Agendamento legado sem horário definido');
       const updated = await tx.checkin_checkout.update({
         where: { id_check: check.id_check },
         data: { status_checkin: 'Iniciado', status_pagamento: 'Pendente', horario_checkin: this.clock() },

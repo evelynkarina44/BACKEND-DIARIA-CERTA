@@ -3,7 +3,7 @@
 import prisma from '../../lib/prisma.js';
 import { currentLocalDate } from '../../utils/dateTime.js';
 import { calculateDistanceKm, coordinatesByCep } from '../location/CepGeocodingService.js';
-import { ExternalServiceError, ForbiddenError } from '../../errors/index.js';
+import { ForbiddenError } from '../../errors/index.js';
 import { intervalsOverlap } from '../agendamento/availabilityPolicy.js';
 import { responseHistoryInclude, respondsQuickly } from './responseSpeedPolicy.js';
 import { serviceSearchTerms } from '../../utils/serviceSearchTerms.js';
@@ -49,7 +49,7 @@ function publicProfileInclude() {
     orderBy: [{ dia_semana: 'asc' }, { horario_inicio: 'asc' }],
   },
   avaliacao: {
-    where: { comentario_publico: true },
+    where: { comentario_publico: true, autor_tipo: 'Cliente' },
     orderBy: { data_avaliacao: 'desc' },
     take: 20,
     select: {
@@ -199,13 +199,11 @@ export class DiaristaSearchService {
       this.database.diarista.findMany({ where, include: publicProfileInclude() }),
       this.database.servico.findMany({ orderBy: { nome_servico: 'asc' } }),
     ]);
-    const origin = originCep ? await this.geocode(originCep) : null;
-    if ((originCep || id_endereco_origem) && !origin) {
-      throw new ExternalServiceError('Não foi possível obter a localização do CEP do cliente');
-    }
+    const safeGeocode = async cep => { try { return await this.geocode(cep); } catch { return null; } };
+    const origin = originCep ? await safeGeocode(originCep) : null;
     let profiles = await Promise.all(rawProfiles.map(async (profile) => {
       const destination = origin && profile.endereco[0]?.cep
-        ? await this.geocode(profile.endereco[0].cep)
+        ? await safeGeocode(profile.endereco[0].cep)
         : null;
       const distanceKm = origin && destination ? calculateDistanceKm(origin, destination) : null;
       return present(profile, serviceCatalog, distanceKm);
@@ -227,6 +225,16 @@ export class DiaristaSearchService {
     return {
       data: profiles.slice((page - 1) * limit, page * limit),
       pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+      localizacao: {
+        origem_disponivel: Boolean(origin),
+        aviso: (originCep || id_endereco_origem) && !origin
+          ? distancia_max !== undefined
+            ? 'Não foi possível calcular as distâncias. Remova o filtro de distância para ver as profissionais.'
+            : ordenar === 'distancia'
+              ? 'Distâncias indisponíveis no momento. Exibindo profissionais por avaliação.'
+              : 'Distâncias indisponíveis no momento. Exibindo profissionais sem distância.'
+          : null,
+      },
     };
   }
 

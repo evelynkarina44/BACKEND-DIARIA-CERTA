@@ -31,7 +31,7 @@ export class AgendamentoTrackingService {
             { pagamento_parcela: { some: { fase: 'Entrada', status: 'Pago' } } },
             { pagamento_parcela: { some: { fase: 'Saldo', status: 'Pago' } } },
           ] } },
-          ...(customer ? [{ avaliacao: { none: { autor_tipo: 'Cliente' } } }] : []),
+          { avaliacao: { none: { autor_tipo: customer ? 'Cliente' : 'Diarista' } } },
         ] },
         { status: { in: ['Recusado', 'Cancelado', 'Expirado'] }, respondido_em: { gte: twoDaysAgo } },
         { pagamento_parcela: { some: { status: { in: ['Estorno_pendente', 'Em_disputa'] } } } },
@@ -45,7 +45,7 @@ export class AgendamentoTrackingService {
       endereco: { select: { logradouro: true, numero: true, bairro: true, cidade: true, estado: true } },
       agendamento_servico: { select: { diarista_servico: { select: { servico: { select: { nome_servico: true } } } } } },
       checkin_checkout: { select: { horario_chegada: true, horario_checkin: true, horario_checkout: true, status_checkin: true } },
-      avaliacao: { where: { autor_tipo: 'Cliente' }, select: { id_avaliacao: true, nota: true, comentario: true } },
+      avaliacao: { select: { id_avaliacao: true, autor_tipo: true, nota: true, comentario: true } },
       ocorrencia_agendamento: { select: { descricao: true } },
       pagamento_parcela: { include: { transacoes: { select: { estorno_pendente: true } } } },
     };

@@ -23,7 +23,7 @@ function fixture(firstGlobalId = 1) {
   const tx = {
     $queryRaw: async () => { locked = true; return []; },
     diarista: { update: async () => ({ ultimo_numero_diaria: ++lastNumber }), findUnique: async () => ({ id_usuario: 12, usuario: { ativo: true, bloqueado: false }, combo_base: [] }) },
-    endereco: { findUnique: async () => ({ id_cliente: auth.id_cliente }) },
+    endereco: { findUnique: async () => ({ id_cliente: auth.id_cliente, qtd_comodos: data.qtd_comodos }) },
     diarista_servico: { findMany: async () => [{ id_diarista_servico: 3, id_diarista: 8, id_servico: 4, ativo: true, preco: 100 }] },
     disponibilidade_diarista: { findMany: async () => [{ horario_inicio: data.horario_inicio, horario_fim: data.horario_fim }] },
     agendamento: {

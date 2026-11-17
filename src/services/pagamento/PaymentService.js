@@ -8,7 +8,7 @@ import { checkinExpirationInfo, checkinClosed } from '../agendamento/checkinExpi
 const include = {
   ocorrencia_agendamento: { select: { descricao: true } },
   checkin_checkout: true,
-  avaliacao: { where: { autor_tipo: 'Cliente' }, select: { id_avaliacao: true, nota: true, comentario: true } },
+  avaliacao: { select: { id_avaliacao: true, autor_tipo: true, nota: true, comentario: true } },
   pagamento_parcela: { include: { transacoes: true }, orderBy: { fase: 'asc' } },
 };
 
@@ -28,6 +28,8 @@ export class PaymentService {
   }
 
   summary(appointment) {
+    const customerReview = appointment.avaliacao?.find(review => !review.autor_tipo || review.autor_tipo === 'Cliente');
+    const workerReview = appointment.avaliacao?.find(review => review.autor_tipo === 'Diarista');
     const amounts = splitPayment(appointment.valor_estimado);
     const installments = ['Entrada', 'Saldo'].map((phase) => {
       const installment = appointment.pagamento_parcela.find((item) => item.fase === phase);
@@ -50,9 +52,11 @@ export class PaymentService {
       valor_total: (amounts.entrada + amounts.saldo) / 100,
       moeda: 'BRL',
       quitado: installments.every((item) => item.status === 'Pago'),
-      pode_avaliar: canCustomerReview(appointment) && !appointment.avaliacao?.length,
-      avaliacao_cliente: appointment.avaliacao?.[0] ? {
-        ...appointment.avaliacao[0], nota: Number(appointment.avaliacao[0].nota),
+      pode_avaliar: canCustomerReview(appointment) && !customerReview,
+      pode_avaliar_cliente: appointment.status === 'Concluido' && !workerReview,
+      avaliacao_diarista: workerReview ? { ...workerReview, nota: Number(workerReview.nota) } : null,
+      avaliacao_cliente: customerReview ? {
+        ...customerReview, nota: Number(customerReview.nota),
       } : null,
       parcelas: installments,
     };

@@ -7,7 +7,7 @@ export function arrivalRecorded(appointment) {
   const arrival = check?.horario_chegada ? new Date(check.horario_chegada) : null;
   const deadline = checkinDeadline(appointment);
   return Boolean(arrival && deadline && Number.isFinite(arrival.getTime())
-    && arrival.getTime() >= deadline.getTime() - 30 * 60000 && arrival < deadline);
+    && arrival < deadline);
 }
 export function confirmationDeadline(appointment) {
   if (!arrivalRecorded(appointment)) return null;

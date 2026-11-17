@@ -7,7 +7,7 @@ function scenario() {
   const data = createAgendamentoSchema.parse({ id_diarista: 8, id_endereco: 2, data_agendamento: '2099-01-01', horario_inicio: '09:00', horario_fim: '10:00', qtd_comodos: 4, tamanho_residencia: 'media', servicos: [{ id_diarista_servico: 3 }] });
   const database = {
     diarista: { findUnique: async () => ({ id_usuario: 12, usuario: { ativo: true, bloqueado: false }, qtd_max_comodos: 6, combo_base: [] }) },
-    endereco: { findUnique: async () => ({ id_cliente: 2 }) },
+    endereco: { findUnique: async () => ({ id_cliente: 2, qtd_comodos: 4 }) },
     diarista_servico: { findMany: async () => [{ id_diarista_servico: 3, id_diarista: 8, id_servico: 4, ativo: true, preco: 100 }] },
     disponibilidade_diarista: { findMany: async () => [{ horario_inicio: data.horario_inicio, horario_fim: data.horario_fim }] },
     agendamento: { findMany: async () => [] },
@@ -35,7 +35,25 @@ test('estimativa rejeita conta bloqueada e datas impossíveis', async () => {
   assert.equal(createAgendamentoSchema.safeParse({ ...data, data_agendamento: '2027-02-30' }).success, false);
 });
 
-test('estimativa e criação não bloqueiam cômodos acima dos limites da diarista ou do combo', async () => {
+test('limite considera a casa do banco, permite igualdade e não aceita quantidade adulterada', async () => {
+  const { data, database, auth } = scenario();
+  database.diarista.findUnique = async () => ({ id_usuario: 12, usuario: { ativo: true, bloqueado: false }, qtd_max_comodos: 5, combo_base: [] });
+  const service = new AgendamentoWorkflowService(database);
+  let rooms = 6;
+  database.endereco.findUnique = async () => ({ id_cliente: 2, qtd_comodos: rooms });
+  for (const action of ['estimate', 'create']) {
+    await assert.rejects(() => service[action]({ ...data, qtd_comodos: 1 }, auth, true), /atende até 5 cômodos.*possui 6/);
+  }
+  for (rooms of [5, 4]) {
+    assert.equal((await service.estimate({ ...data, qtd_comodos: 99 }, auth)).valor_estimado, 100);
+  }
+  database.endereco.findUnique = async () => ({ id_cliente: 2, qtd_comodos: null, cliente: { qtd_comodos: 6 } });
+  await assert.rejects(() => service.estimate(data, auth), /possui 6/);
+  database.endereco.findUnique = async () => ({ id_cliente: 2, qtd_comodos: null });
+  await assert.rejects(() => service.estimate(data, auth), /Cadastre a quantidade/);
+});
+
+test('estimativa e criação bloqueiam casa acima do limite da diarista, inclusive com combo', async () => {
   const { data, database, auth } = scenario();
   const combo = { id_combo_base: 9, valor_base: 80, qtd_comodos_casa: 1, atende_casa_media: true, atende_casa_pequena: false, atende_casa_grande: false, combo_servico: [{ id_servico: 4 }] };
   database.diarista.findUnique = async () => ({ id_usuario: 12, usuario: { ativo: true, bloqueado: false }, qtd_max_comodos: 1, combo_base: [combo] });
@@ -45,6 +63,12 @@ test('estimativa e criação não bloqueiam cômodos acima dos limites da diaris
     return { ...input, id_agendamento: 1, status: 'Pendente', agendamento_servico: [] };
   };
   const service = new AgendamentoWorkflowService(database);
+  for (const payload of [data, { ...data, id_combo_base: 9 }]) {
+    await assert.rejects(() => service.estimate(payload, auth), /atende até 1 cômodos/);
+    await assert.rejects(() => service.create(payload, auth, true), /atende até 1 cômodos/);
+  }
+  assert.equal(stored, undefined);
+  database.diarista.findUnique = async () => ({ id_usuario: 12, usuario: { ativo: true, bloqueado: false }, qtd_max_comodos: 4, combo_base: [combo] });
   for (const [payload, expectedPrice] of [[data, 100], [{ ...data, id_combo_base: 9 }, 80]]) {
     assert.equal((await service.estimate(payload, auth)).valor_estimado, expectedPrice);
     const created = await service.create(payload, auth, true);

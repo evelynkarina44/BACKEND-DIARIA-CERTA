@@ -27,21 +27,19 @@ function fixture() {
   return { appointment, database, service: new CheckinCheckoutWorkflowService(database, () => new Date(now)), worker: { id_diarista: 3 }, setNow: date => { now = date; } };
 }
 
-test('check-in bloqueado antes do horário; liberado exatamente no início agendado', async () => {
+test('diarista registra chegada e cliente confirma antes do horário agendado', async () => {
   const f = fixture();
   const start = combineDateAndTime(f.appointment.data_agendamento, f.appointment.horario_inicio);
-  f.setNow(new Date(start.getTime() - 1));
-  await assert.rejects(() => f.service.requestCheckin(40, f.worker), /a partir do horário/);
-  assert.equal(f.appointment.checkin_checkout.length, 0);
-  f.setNow(start);
+  const early = new Date(start.getTime() - 24 * 3600000);
+  f.setNow(early);
   const check = await f.service.requestCheckin(40, f.worker);
   assert.equal(check.status_checkin, 'Checkin_solicitado');
-  assert.equal(check.horario_chegada.getTime(), start.getTime());
+  assert.equal(check.horario_chegada.getTime(), early.getTime());
   assert.equal(check.horario_checkin, undefined);
   assert.equal(check.status_pagamento, 'Pendente');
   assert.equal(f.appointment.status, 'Aceito');
   await f.service.confirmCheckin(40, { id_cliente: 2 });
-  assert.equal(check.horario_checkin.getTime(), start.getTime());
+  assert.equal(check.horario_checkin.getTime(), early.getTime());
   assert.equal(f.appointment.status, 'Em_andamento');
 });
 

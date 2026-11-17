@@ -26,6 +26,32 @@ function scenario() {
 }
 const auth = { id_cliente: 2, id_usuario: 1 };
 
+test('a geocoding outage keeps professionals visible with unknown distances', async () => {
+  const { service } = scenario();
+  service.geocode = async () => { throw new Error('provider unavailable'); };
+  const result = await service.list({ id_endereco_origem: 21, ordenar: 'distancia' }, auth);
+  assert.equal(result.pagination.total, 14);
+  assert.ok(result.data.every(profile => profile.distancia_km === null));
+  assert.equal(result.localizacao.origem_disponivel, false);
+  assert.ok(result.localizacao.aviso);
+  const filtered = await service.list({ id_endereco_origem: 21, ordenar: 'distancia', distancia_max: 5 }, auth);
+  assert.equal(filtered.pagination.total, 0);
+  assert.match(filtered.localizacao.aviso, /Remova o filtro/);
+});
+
+test('one destination outage does not hide other professionals', async () => {
+  const { service } = scenario();
+  const geocode = service.geocode;
+  service.geocode = async cep => {
+    if (cep === '11111-111') throw new Error('provider unavailable');
+    return geocode(cep);
+  };
+  const result = await service.list({ id_endereco_origem: 22, ordenar: 'distancia', limit: 100 }, auth);
+  assert.equal(result.pagination.total, 14);
+  assert.equal(result.data[0].id_diarista, 11);
+  assert.equal(result.data.at(-1).distancia_km, null);
+});
+
 test('trocar casa recalcula a origem e muda a profissional mais próxima antes da paginação', async () => {
   const { service, geocoded } = scenario();
   const first = await service.list({ id_endereco_origem: 21, ordenar: 'distancia', limit: 1, page: 1 }, auth);

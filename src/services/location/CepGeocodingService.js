@@ -1,7 +1,6 @@
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
-const REQUEST_TIMEOUT_MS = 6000;
-const cache = new Map();
-const pendingRequests = new Map();
+const REQUEST_TIMEOUT_MS = 3000;
+const FAILURE_CACHE_TTL_MS = 30 * 1000;
 
 function normalizeCep(value) {
   const cep = String(value ?? '').replace(/\D/g, '');
@@ -26,41 +25,56 @@ export function coordinatesFromResponse(data) {
   return validCoordinates(latitude, longitude) ? { latitude, longitude } : null;
 }
 
-async function requestCoordinates(cep) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-  try {
-    const response = await fetch(`https://brasilapi.com.br/api/cep/v2/${cep}`, {
-      headers: { Accept: 'application/json' },
-      signal: controller.signal,
-    });
-    if (!response.ok) return null;
-    const data = await response.json();
-    return coordinatesFromResponse(data);
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timeout);
+async function requestCoordinates(cep, fetcher) {
+  const providers = [
+    { url: `https://brasilapi.com.br/api/cep/v2/${cep}`, parse: coordinatesFromResponse },
+    { url: `https://cep.awesomeapi.com.br/json/${cep}`, parse: data => coordinatesFromResponse({ location: { coordinates: { latitude: data?.lat, longitude: data?.lng } } }) },
+  ];
+  for (const provider of providers) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    try {
+      const response = await fetcher(provider.url, {
+        headers: { Accept: 'application/json' },
+        signal: controller.signal,
+      });
+      if (!response.ok) continue;
+      const data = await response.json();
+      if (data?.cep && normalizeCep(data.cep) !== cep) continue;
+      const coordinates = provider.parse(data);
+      if (coordinates) return coordinates;
+    } catch {
+      // Try the next provider on timeouts, network errors or malformed responses.
+    } finally {
+      clearTimeout(timeout);
+    }
   }
+  return null;
 }
 
-export async function coordinatesByCep(value) {
-  const cep = normalizeCep(value);
-  if (!cep) return null;
+export function createCepGeocoder({ fetcher = fetch, now = Date.now } = {}) {
+  const cache = new Map();
+  const pendingRequests = new Map();
+  return async function geocode(value) {
+    const cep = normalizeCep(value);
+    if (!cep) return null;
 
-  const cached = cache.get(cep);
-  if (cached && cached.expiresAt > Date.now()) return cached.coordinates;
-  if (pendingRequests.has(cep)) return pendingRequests.get(cep);
+    const cached = cache.get(cep);
+    if (cached && cached.expiresAt > now()) return cached.coordinates;
+    if (pendingRequests.has(cep)) return pendingRequests.get(cep);
 
-  const request = requestCoordinates(cep)
-    .then((coordinates) => {
-      cache.set(cep, { coordinates, expiresAt: Date.now() + CACHE_TTL_MS });
-      return coordinates;
-    })
-    .finally(() => pendingRequests.delete(cep));
-  pendingRequests.set(cep, request);
-  return request;
+    const request = requestCoordinates(cep, fetcher)
+      .then((coordinates) => {
+        cache.set(cep, { coordinates, expiresAt: now() + (coordinates ? CACHE_TTL_MS : FAILURE_CACHE_TTL_MS) });
+        return coordinates;
+      })
+      .finally(() => pendingRequests.delete(cep));
+    pendingRequests.set(cep, request);
+    return request;
+  };
 }
+
+export const coordinatesByCep = createCepGeocoder();
 
 export function calculateDistanceKm(origin, destination) {
   const earthRadiusKm = 6371.0088;

@@ -176,6 +176,20 @@ function addCrud({
   };
 }
 
+paths['/api/avaliacao/recebidas'] = {
+  get: {
+    tags: ['Avaliações'], summary: 'Listar avaliações recebidas pelo perfil ativo', operationId: 'listarAvaliacoesRecebidas',
+    description: 'Cliente recebe somente avaliações escritas por diaristas; diarista recebe somente avaliações escritas por clientes. Inclui média e paginação, sem revelar a identidade de autores anônimos.',
+    security: bearerSecurity, parameters: paginationParameters,
+    responses: { '200': successResponse('Avaliações recebidas e média.', { type: 'object', properties: {
+      data: { type: 'array', items: { type: 'object', properties: {
+        id_avaliacao: { type: 'integer' }, nota: { type: 'number' }, comentario: { type: 'string', nullable: true },
+        autor: { type: 'string' }, data_avaliacao: { type: 'string', format: 'date-time' },
+      } } }, media: { type: 'number', nullable: true }, pagination: schemaRef('Pagination'),
+    } }), ...standardErrors({ authenticated: true, forbidden: true }) },
+  },
+};
+
 paths['/health'] = {
   get: {
     tags: ['Sistema'],
@@ -554,7 +568,7 @@ paths['/api/checkin-checkout/agendamento/{id}'] = {
 };
 
 for (const action of [
-  { path: 'solicitar', summary: 'Registrar chegada da diarista', operationId: 'solicitarCheckin', description: 'A diarista registra horario_chegada a partir do horário marcado e antes de 30 minutos. Mantém Aceito e Checkin_solicitado, sem iniciar o serviço. O cliente tem 30 minutos após a chegada para confirmar, com entrada aprovada. Não cobra nem aprova pagamento.' },
+  { path: 'solicitar', summary: 'Registrar chegada da diarista', operationId: 'solicitarCheckin', description: 'A diarista registra horario_chegada assim que chegar, inclusive antes do horário marcado, enquanto a diária aceita não estiver expirada. Mantém Aceito e Checkin_solicitado, sem iniciar o serviço. O cliente pode confirmar imediatamente, com entrada aprovada, e tem 30 minutos após a chegada para confirmar. Não cobra nem aprova pagamento.' },
   { path: 'confirmar-inicio', summary: 'Cliente confirma chegada e inicia diária', operationId: 'confirmarInicio', description: 'Exclusivo do cliente titular. Exige chegada registrada pela diarista, entrada de 50% aprovada e confirmação antes de 30 minutos da chegada. Registra horario_checkin e altera para Em_andamento. Sem confirmação no prazo, cancela por falta de confirmação do cliente e agenda estorno integral da entrada paga, sem registrar ausência da diarista.' },
   { path: 'confirmar-pagamento', summary: 'Confirmar presença e iniciar check-in', operationId: 'confirmarPagamento', description: 'Compatibilidade do endpoint antigo: exige entrada já aprovada pelo Mercado Pago. Não marca a diária como paga nem cobra outra parcela.' },
   { path: 'checkout', summary: 'Realizar check-out e liberar saldo', operationId: 'realizarCheckout', description: 'A diarista conclui um serviço iniciado. O saldo de 50% é liberado para pagamento separado pelo cliente.' },

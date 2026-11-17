@@ -20,6 +20,7 @@ export class FindClienteService {
         },
         endereco: { orderBy: { id_endereco: 'asc' } },
         avaliacao: {
+          where: { autor_tipo: 'Diarista' },
           select: {
             id_avaliacao: true,
             nota: true,

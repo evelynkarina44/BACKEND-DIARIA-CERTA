@@ -71,7 +71,7 @@ export class AgendamentoWorkflowService {
           },
         },
       }),
-      this.database.endereco.findUnique({ where: { id_endereco: data.id_endereco } }),
+      this.database.endereco.findUnique({ where: { id_endereco: data.id_endereco }, include: { cliente: { select: { qtd_comodos: true } } } }),
       this.database.diarista_servico.findMany({
         where: { id_diarista_servico: { in: data.servicos.map((item) => item.id_diarista_servico) } },
       }),
@@ -107,9 +107,15 @@ export class AgendamentoWorkflowService {
 
     // O endereço selecionado é a fonte dos dados da casa, nunca o formulário.
     const residence = {
-      qtd_comodos: endereco.qtd_comodos ?? data.qtd_comodos,
+      qtd_comodos: endereco.qtd_comodos ?? endereco.cliente?.qtd_comodos,
       tamanho_residencia: endereco.tamanho_casa ?? data.tamanho_residencia,
     };
+    if (!Number.isSafeInteger(residence.qtd_comodos) || residence.qtd_comodos <= 0) {
+      throw new BadRequestError('Cadastre a quantidade de cômodos da casa selecionada antes de agendar.');
+    }
+    if (residence.qtd_comodos > diarista.qtd_max_comodos) {
+      throw new BadRequestError(`Esta diarista atende até ${diarista.qtd_max_comodos} cômodos. A casa selecionada possui ${residence.qtd_comodos}. Escolha outra casa ou outra profissional.`);
+    }
     const sizeField = `atende_casa_${residence.tamanho_residencia}`;
     const selectedCombo = data.id_combo_base
       ? diarista.combo_base.find((combo) => combo.id_combo_base === data.id_combo_base)

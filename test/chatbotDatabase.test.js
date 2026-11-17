@@ -22,7 +22,7 @@ test('MySQL real: proposta, confirmação idempotente, alteração, expiração 
       const address = { logradouro: 'Rua de teste', numero: 10, bairro: 'Centro', cidade: 'São Paulo', estado: 'SP', cep: '01001-000' };
       const customer = await tx.cliente.create({ data: { id_usuario: customerUser.id_usuario, data_nascimento: new Date('1990-01-01'), qtd_comodos: 3, tamanho_casa: 'pequena', endereco: { create: address } } });
       // O cliente tem 3 cômodos; o limite cadastrado de 1 não deve impedir a contratação.
-      const professional = await tx.diarista.create({ data: { id_usuario: professionalUser.id_usuario, descricao: 'Profissional usada apenas no teste revertido.', qtd_max_comodos: 1, endereco: { create: address } } });
+      const professional = await tx.diarista.create({ data: { id_usuario: professionalUser.id_usuario, descricao: 'Profissional usada apenas no teste revertido.', qtd_max_comodos: 5, endereco: { create: address } } });
       const service = await tx.servico.create({ data: { nome_servico: `Teste chatbot ${suffix}` } });
       const offered = await tx.diarista_servico.create({ data: { id_diarista: professional.id_diarista, id_servico: service.id_servico, preco: 100 } });
       const day = new Date(); day.setUTCDate(day.getUTCDate() + 7); day.setUTCHours(0, 0, 0, 0);

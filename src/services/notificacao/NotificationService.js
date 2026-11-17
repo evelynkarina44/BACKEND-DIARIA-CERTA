@@ -18,14 +18,14 @@ export class NotificationService {
         { solicitado_em: { gte: since } }, { respondido_em: { gte: since } },
         { checkin_checkout: { some: { OR: [{ horario_checkin: { gte: since } }, { horario_checkout: { gte: since } }] } } },
         { pagamento_parcela: { some: { atualizado_em: { gte: since } } } },
-        { avaliacao: { some: { data_avaliacao: { gte: since }, autor_tipo: 'Cliente' } } },
+        { avaliacao: { some: { data_avaliacao: { gte: since } } } },
         { status: 'Aceito', data_agendamento: { gte: new Date(since.toISOString().slice(0, 10)) } },
       ] },
       select: {
         id_agendamento: true, numero_diarista: true, status: true, data_agendamento: true, horario_inicio: true, solicitado_em: true, respondido_em: true,
         ocorrencia_agendamento: { select: { descricao: true } },
         checkin_checkout: { select: { horario_chegada: true, horario_checkin: true, horario_checkout: true, status_checkin: true } },
-        avaliacao: { where: { autor_tipo: 'Cliente' }, select: { data_avaliacao: true } },
+        avaliacao: { select: { autor_tipo: true, data_avaliacao: true } },
         pagamento_parcela: { select: { fase: true, status: true, atualizado_em: true, transacoes: { select: {
           status: true, criado_em: true, estorno_pendente: true, estornado_centavos: true, valor_centavos: true,
         } } } },

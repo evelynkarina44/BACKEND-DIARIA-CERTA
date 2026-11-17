@@ -39,6 +39,30 @@ function fixture(paid = true) {
   return { appointment, db, setNow: value => { now = value; }, now: () => now, workflow: new CheckinCheckoutWorkflowService(db, () => now) };
 }
 
+test('chegada antecipada é reconhecida e mantém prazo de confirmação contado da chegada', async () => {
+  const f = fixture();
+  f.setNow(new Date('2026-11-10T11:00:00Z'));
+  await f.workflow.requestCheckin(44, { id_diarista: 8 });
+  assert.equal(confirmationDeadline(f.appointment).toISOString(), '2026-11-10T11:30:00.000Z');
+  assert.equal(checkinExpirationInfo(f.appointment, f.now()).aguardando_confirmacao_cliente, true);
+  f.setNow(new Date('2026-11-10T11:29:59Z'));
+  await f.workflow.confirmCheckin(44, { id_cliente: 2 });
+  assert.equal(f.appointment.status, 'Em_andamento');
+});
+
+test('tarefa de expiração inclui chegada antecipada em diária de data futura', async () => {
+  const f = fixture();
+  f.setNow(new Date('2026-11-10T11:00:00Z'));
+  await f.workflow.requestCheckin(44, { id_diarista: 8 });
+  let query;
+  f.db.agendamento.findMany = async args => { query = args; return [{ id_agendamento: 44 }]; };
+  f.setNow(new Date('2026-11-10T11:30:00Z'));
+  await new CheckinExpirationService(f.db, f.now).run();
+  assert.ok(query.where.OR.some(condition => condition.checkin_checkout?.some?.horario_chegada));
+  assert.equal(f.appointment.status, 'Cancelado');
+  assert.equal(f.appointment.ocorrencia_agendamento[0].descricao, CLIENT_CONFIRMATION_EXPIRATION_REASON);
+});
+
 test('tolerância em Brasília: 29min59s ainda permite, 30 minutos encerra', async () => {
   const f = fixture();
   assert.equal(checkinDeadline(f.appointment).toISOString(), '2026-11-11T11:30:00.000Z');

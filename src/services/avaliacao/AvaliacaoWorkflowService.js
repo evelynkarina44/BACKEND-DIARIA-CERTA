@@ -31,6 +31,30 @@ function present(review) {
 export class AvaliacaoWorkflowService {
   constructor(database = prisma) { this.database = database; }
 
+  async received({ page = 1, limit = 5 } = {}, auth) {
+    const customer = auth?.activeProfile === 'CLIENTE' && auth.id_cliente;
+    const worker = auth?.activeProfile === 'DIARISTA' && auth.id_diarista;
+    if (!customer && !worker) throw new ForbiddenError('Selecione seu perfil para ver as avaliações recebidas.');
+    const where = customer ? { id_cliente: auth.id_cliente, autor_tipo: 'Diarista' }
+      : { id_diarista: auth.id_diarista, autor_tipo: 'Cliente' };
+    const [reviews, aggregate] = await Promise.all([
+      this.database.avaliacao.findMany({ where, skip: (page - 1) * limit, take: limit,
+        orderBy: [{ data_avaliacao: 'desc' }, { id_avaliacao: 'desc' }],
+        select: { id_avaliacao: true, nota: true, comentario: true, data_avaliacao: true, anonima: true,
+          cliente: { select: { usuario: { select: { nome: true } } } },
+          diarista: { select: { usuario: { select: { nome: true } } } },
+        },
+      }),
+      this.database.avaliacao.aggregate({ where, _avg: { nota: true }, _count: { _all: true } }),
+    ]);
+    const total = aggregate._count._all;
+    return { data: reviews.map(review => ({ id_avaliacao: review.id_avaliacao,
+      nota: Number(review.nota), comentario: review.comentario, data_avaliacao: review.data_avaliacao,
+      autor: review.anonima ? 'Avaliação anônima' : (customer ? review.diarista : review.cliente)?.usuario?.nome ?? 'Usuário',
+    })), media: aggregate._avg.nota === null ? null : Number(aggregate._avg.nota),
+    pagination: { page, limit, total, pages: Math.ceil(total / limit) } };
+  }
+
   async create(data, auth) {
     return this.database.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id_agendamento FROM agendamento WHERE id_agendamento = ${data.id_agendamento} FOR UPDATE`;
