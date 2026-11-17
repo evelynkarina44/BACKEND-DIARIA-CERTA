@@ -61,6 +61,6 @@ export function notificationEvents(a, profile, now = new Date()) {
   add('avaliacao', customer ? 'Avaliação registrada' : 'Você recebeu uma avaliação',
     customer ? 'Sua avaliação da diarista foi salva.' : 'O cliente avaliou o serviço desta diária.', customerReview?.data_avaliacao);
   add('avaliacao-cliente', customer ? 'Você recebeu uma avaliação' : 'Avaliação do cliente registrada',
-    customer ? 'A diarista avaliou você. Confira o comentário na página inicial ou no seu perfil.' : 'Sua avaliação do cliente foi salva.', workerReview?.data_avaliacao);
+    customer ? 'A diarista avaliou você. Confira o comentário em Avaliações recebidas, pelo menu, ou no seu perfil.' : 'Sua avaliação do cliente foi salva.', workerReview?.data_avaliacao);
   return events;
 }
