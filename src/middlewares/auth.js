@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken';
 import prisma from '../lib/prisma.js';
 import { ForbiddenError, InternalServerError, UnauthorizedError } from '../errors/index.js';
 import { availableProfiles } from '../services/auth/authSession.js';
+import { accountUnavailable } from '../services/auth/accountAccess.js';
 
 // A busca continua pública, mas um token enviado deve ser validado para personalizá-la.
 export function optionalAuthenticate(req, res, next) {
@@ -31,12 +32,16 @@ export async function authenticate(req, _res, next) {
         id_usuario: true,
         ativo: true,
         bloqueado: true,
+        administrador: true,
+        suspenso_ate: true,
+        excluido_em: true,
+        versao_sessao: true,
         cliente: { select: { id_cliente: true } },
         diarista: { select: { id_diarista: true } },
       },
     });
 
-    if (!user || !user.ativo || user.bloqueado) throw new UnauthorizedError('Sessão inválida');
+    if (accountUnavailable(user) || (payload.sessionVersion ?? 0) !== (user.versao_sessao ?? 0)) throw new UnauthorizedError('Sessão inválida');
 
     const profiles = availableProfiles(user);
     const tokenActiveProfile = typeof payload.activeProfile === 'string'

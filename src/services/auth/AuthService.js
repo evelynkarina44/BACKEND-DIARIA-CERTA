@@ -4,6 +4,7 @@ import prisma from '../../lib/prisma.js';
 import { ForbiddenError, UnauthorizedError } from '../../errors/index.js';
 import { usuarioPublicSelect } from '../usuario/usuarioSelect.js';
 import { availableProfiles, buildSessionUser, createAuthSession } from './authSession.js';
+import { accountUnavailable } from './accountAccess.js';
 
 export class AuthService {
   constructor(database = prisma) {
@@ -18,6 +19,8 @@ export class AuthService {
         senha: true,
         ativo: true,
         bloqueado: true,
+        suspenso_ate: true,
+        excluido_em: true,
       },
     });
 
@@ -34,7 +37,7 @@ export class AuthService {
       }
     }
 
-    if (!userWithPassword || !passwordMatches || !userWithPassword.ativo || userWithPassword.bloqueado) {
+    if (!passwordMatches || accountUnavailable(userWithPassword)) {
       throw new UnauthorizedError('E-mail ou senha inválidos');
     }
 

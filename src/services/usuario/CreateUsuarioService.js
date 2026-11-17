@@ -9,10 +9,11 @@ export class CreateUsuarioService {
   }
 
   async execute(data) {
+    const { administrador: _administrador, ...registration } = data;
     const email = data.email.toLowerCase();
     await new CheckUsuarioAvailabilityService(this.repository).execute({ email, cpf: data.cpf });
     return this.repository.create({
-      ...data,
+      ...registration,
       email,
       senha: await bcrypt.hash(data.senha, 12),
     }, { select: usuarioPublicSelect });

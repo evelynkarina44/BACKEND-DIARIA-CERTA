@@ -1,6 +1,7 @@
 // POLLYANA | ETAPA 5 — Preço e regras ficam no backend, não no Gemini.
 // Ir ao cálculo em validateAndPrice(); o mesmo fluxo atende o agendamento tradicional e o chatbot.
 import prisma from '../../lib/prisma.js';
+import { accountUnavailable } from '../auth/accountAccess.js';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../../errors/index.js';
 import { combineDateAndTime, currentLocalDate } from '../../utils/dateTime.js';
 import { findBookingConflict, findDuplicateRequest, lockDiarista } from './availabilityPolicy.js';
@@ -57,7 +58,7 @@ export class AgendamentoWorkflowService {
       this.database.diarista.findUnique({
         where: { id_diarista: data.id_diarista },
         include: {
-          usuario: { select: { ativo: true, bloqueado: true } },
+          usuario: { select: { ativo: true, bloqueado: true, suspenso_ate: true, excluido_em: true } },
           combo_base: {
             where: { ativo: true },
             select: {
@@ -85,7 +86,7 @@ export class AgendamentoWorkflowService {
     ]);
 
     if (!diarista) throw new NotFoundError('Diarista não encontrada');
-    if (!diarista.usuario?.ativo || diarista.usuario.bloqueado) throw new ConflictError('Diarista não está disponível para contratação');
+    if (!diarista.usuario?.ativo || diarista.usuario.bloqueado || diarista.usuario.excluido_em || (diarista.usuario.suspenso_ate && new Date(diarista.usuario.suspenso_ate) > new Date())) throw new ConflictError('Diarista não está disponível para contratação');
     if (diarista.id_usuario === auth.id_usuario) throw new BadRequestError('Não é possível agendar o próprio perfil de diarista');
     if (!endereco || endereco.id_cliente !== auth.id_cliente) throw new ForbiddenError('Endereço não pertence ao cliente autenticado');
     if (services.length !== data.servicos.length || services.some((item) => item.id_diarista !== data.id_diarista || !item.ativo)) {
@@ -160,6 +161,9 @@ export class AgendamentoWorkflowService {
         return new AgendamentoWorkflowService(tx).create(data, auth, true);
       }, { isolationLevel: 'ReadCommitted' });
     }
+    // Shares account locks with moderation: an in-flight booking cannot bypass a ban.
+    const accounts = await this.database.$queryRaw`SELECT id_usuario, ativo, bloqueado, suspenso_ate, excluido_em FROM usuario WHERE id_usuario = ${auth.id_usuario} OR id_usuario = (SELECT id_usuario FROM diarista WHERE id_diarista = ${data.id_diarista}) ORDER BY id_usuario FOR UPDATE`;
+    if (accounts.some(account => accountUnavailable(account))) throw new ForbiddenError('Uma das contas não está disponível para agendamento.');
     const duplicate = await findDuplicateRequest(this.database, data, auth.id_cliente);
     if (duplicate) {
       throw new ConflictError('Você já possui uma solicitação para esta diarista nessa data e horário. Acompanhe o pedido em Minhas diárias, sem enviar outra solicitação.');

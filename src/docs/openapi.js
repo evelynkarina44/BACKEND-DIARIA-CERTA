@@ -1,6 +1,8 @@
 import { chatbotPaths, chatbotSchemas } from './chatbotOpenapi.js';
 import { pagamentoPaths, pagamentoSchemas } from './pagamentoOpenapi.js';
 import { notificationPaths, notificationSchemas } from './notificacaoOpenapi.js';
+import { adminPaths, adminSchemas } from './adminOpenapi.js';
+import { mediaPaths } from './mediaOpenapi.js';
 
 const id = {
   name: 'id',
@@ -832,7 +834,7 @@ components.schemas = {
     total: { type: 'integer', minimum: 0 }, pages: { type: 'integer', minimum: 0 },
   }, ['page', 'limit', 'total', 'pages']),
   LoginRequest: objectSchema({ email: { type: 'string', format: 'email', maxLength: 100 }, senha: { type: 'string', format: 'password', minLength: 1, maxLength: 100 } }, ['email', 'senha']),
-  SelectProfileRequest: objectSchema({ profile: { type: 'string', enum: ['CLIENTE', 'DIARISTA'] } }, ['profile']),
+  SelectProfileRequest: objectSchema({ profile: { type: 'string', enum: ['CLIENTE', 'DIARISTA', 'ADMIN'] } }, ['profile']),
   LoginResponse: objectSchema({ token: { type: 'string', description: 'JWT Bearer.' }, user: schemaRef('Usuario') }, ['token', 'user']),
   UsuarioCreate: usuarioCreate,
   UsuarioUpdate: partialSchema(usuarioCreate),
@@ -842,8 +844,9 @@ components.schemas = {
     foto_perfil: { type: 'string' }, data_cadastro: { type: 'string', format: 'date-time' },
     cliente: { type: 'array', items: objectSchema({ id_cliente: positiveInteger }) },
     diarista: { type: 'array', items: objectSchema({ id_diarista: positiveInteger }) },
-    profiles: { type: 'array', items: { type: 'string', enum: ['CLIENTE', 'DIARISTA'] } },
-    activeProfile: { type: 'string', enum: ['CLIENTE', 'DIARISTA'], nullable: true },
+    administrador: { type: 'boolean', readOnly: true },
+    profiles: { type: 'array', items: { type: 'string', enum: ['CLIENTE', 'DIARISTA', 'ADMIN'] } },
+    activeProfile: { type: 'string', enum: ['CLIENTE', 'DIARISTA', 'ADMIN'], nullable: true },
     requiresProfileSelection: { type: 'boolean' },
   }, ['id_usuario', 'nome', 'email', 'telefone', 'tipo']),
   ClienteCreate: clienteCreate,
@@ -959,6 +962,7 @@ export const openApiDocument = {
   },
   servers: [{ url: '/', description: 'Servidor atual' }],
   tags: [
+    { name: 'Administração', description: 'Moderação restrita de denúncias e histórico das decisões.' },
     { name: 'Assistente', description: 'Conversa com Gemini e RAG, propostas e confirmação de solicitações pelo cliente.' },
     { name: 'Sistema', description: 'Saúde e contrato da API.' },
     { name: 'Autenticação', description: 'Login e sessão autenticada.' },
@@ -981,8 +985,8 @@ export const openApiDocument = {
     { name: 'Denúncias', description: 'Denúncias entre usuários.' },
     { name: 'Ocorrências', description: 'Ocorrências ligadas a agendamentos.' },
   ],
-  paths: { ...paths, ...chatbotPaths, ...pagamentoPaths, ...notificationPaths },
-  components: { ...components, schemas: { ...components.schemas, ...chatbotSchemas, ...pagamentoSchemas, ...notificationSchemas } },
+  paths: { ...paths, ...chatbotPaths, ...pagamentoPaths, ...notificationPaths, ...adminPaths, ...mediaPaths },
+  components: { ...components, schemas: { ...components.schemas, ...chatbotSchemas, ...pagamentoSchemas, ...notificationSchemas, ...adminSchemas } },
 };
 
 export default openApiDocument;

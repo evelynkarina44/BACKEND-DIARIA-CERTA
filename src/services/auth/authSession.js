@@ -6,6 +6,7 @@ export const PROFILE_DIARISTA = 'DIARISTA';
 
 export function availableProfiles(user) {
   return [
+    ...(user.administrador === true ? ['ADMIN'] : []),
     ...(user.cliente?.length ? [PROFILE_CLIENTE] : []),
     ...(user.diarista?.length ? [PROFILE_DIARISTA] : []),
   ];
@@ -41,6 +42,7 @@ export function createAuthSession(user, requestedActiveProfile = null) {
     roles: sessionUser.profiles.map((profile) => profile.toLowerCase()),
     profiles: sessionUser.profiles,
     activeProfile: sessionUser.activeProfile,
+    sessionVersion: user.versao_sessao ?? 0,
   }, jwtSecret(), {
     expiresIn: process.env.JWT_EXPIRES_IN || '8h',
     issuer: 'diaria-certa-api',

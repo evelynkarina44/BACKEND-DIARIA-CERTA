@@ -30,7 +30,12 @@ test('consulta combos e preços atuais por nome, sem consultar ou expor dados pr
   assert.equal(answer.fontes[0].id, 'diarista:18:combos');
   assert.equal(queries.length, 1);
   const [query] = queries;
-  assert.deepEqual(query.where.usuario, { ativo: true, bloqueado: false, nome: { equals: 'Rafael Sá' } });
+  assert.deepEqual(query.where.usuario.nome, { equals: 'Rafael Sá' });
+  assert.equal(query.where.usuario.ativo, true);
+  assert.equal(query.where.usuario.bloqueado, false);
+  assert.equal(query.where.usuario.excluido_em, null);
+  assert.equal(query.where.usuario.OR[0].suspenso_ate, null);
+  assert.ok(query.where.usuario.OR[1].suspenso_ate.lte instanceof Date);
   assert.deepEqual(query.select.usuario, { select: { nome: true } });
   assert.deepEqual(query.select.endereco, { select: { cidade: true, estado: true } });
   assert.deepEqual(query.select.combo_base.where, { ativo: true });

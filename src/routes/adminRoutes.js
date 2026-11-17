@@ -1,0 +1,17 @@
+import { Router } from 'express';
+import { z } from 'zod';
+import { authenticate, authorizeRoles } from '../middlewares/auth.js';
+import { validate } from '../middlewares/validate.js';
+import { idSchema, paginationSchema } from '../schemas/apiSchemas.js';
+import { AdminDenunciaService, denunciaStates } from '../services/admin/AdminDenunciaService.js';
+import { AdminUserService } from '../services/admin/AdminUserService.js';
+export const adminListSchema = paginationSchema.extend({ status: z.enum(denunciaStates).optional(), busca: z.string().trim().max(100).default('') }).strict();
+export const adminAnalysisSchema = z.object({ status: z.enum(['EmAnalise', 'Resolvida', 'Arquivada']), observacao: z.string().trim().min(1).max(2000), versao: z.number().int().nonnegative(), acao: z.enum(['Nenhuma','Suspender','Excluir']).default('Nenhuma'), dias_suspensao: z.number().int().min(1).max(365).optional() }).strict().refine(d => d.acao !== 'Suspender' || Boolean(d.dias_suspensao), 'Informe os dias de suspensão.').refine(d => d.acao === 'Nenhuma' || d.status === 'Resolvida', 'Conclua a denúncia para aplicar uma medida.');
+const router = Router(), service = new AdminDenunciaService();
+router.use(authenticate, authorizeRoles('admin'));
+router.use((_req, res, next) => { res.set('Cache-Control', 'no-store'); res.set('Vary', 'Authorization'); next(); });
+router.get('/usuarios', validate(paginationSchema.extend({ busca: z.string().trim().max(100).default('') }).strict(), 'query'), async (req,res) => res.json(await new AdminUserService().list(req.query,req.auth)));
+router.get('/denuncias', validate(adminListSchema, 'query'), async (req, res) => res.json(await service.list(req.query, req.auth)));
+router.get('/denuncias/:id', validate(idSchema, 'params'), async (req, res) => res.json(await service.detail(req.params.id, req.auth)));
+router.post('/denuncias/:id/analises', validate(idSchema, 'params'), validate(adminAnalysisSchema), async (req, res) => res.json(await service.analyze(req.params.id, req.body, req.auth)));
+export default router;

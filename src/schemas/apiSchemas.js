@@ -35,7 +35,7 @@ export const loginSchema = z.object({
 });
 
 export const selectProfileSchema = z.object({
-  profile: z.enum(['CLIENTE', 'DIARISTA']),
+  profile: z.enum(['CLIENTE', 'DIARISTA', 'ADMIN']),
 });
 
 function isValidCpf(value) {
@@ -60,12 +60,12 @@ const usuarioFields = {
   cpf: z.string().trim().regex(/^\d{11}$/).refine(isValidCpf, 'CPF inválido').nullable().optional(),
   tipo: z.enum(['CLIENTE', 'DIARISTA']).default('CLIENTE'),
 };
-export const createUsuarioSchema = z.object(usuarioFields);
+export const createUsuarioSchema = z.object(usuarioFields).strict();
 export const checkRegistrationSchema = z.object({
   cpf: z.string().trim().regex(/^\d{11}$/, 'Informe os 11 números do CPF.').refine(isValidCpf, 'CPF inválido. Verifique os números digitados.').optional(),
   email: usuarioFields.email.optional(),
 }).strict().refine((data) => Boolean(data.cpf || data.email), 'Informe o CPF ou o e-mail para verificar.');
-export const updateUsuarioSchema = z.object(usuarioFields).omit({ tipo: true }).partial().refine((data) => Object.keys(data).length > 0, 'Informe ao menos um campo');
+export const updateUsuarioSchema = z.object(usuarioFields).omit({ tipo: true }).partial().strict().refine((data) => Object.keys(data).length > 0, 'Informe ao menos um campo');
 
 const enderecoCadastroFields = {
   apelido: z.string().trim().min(2).max(60).optional(),

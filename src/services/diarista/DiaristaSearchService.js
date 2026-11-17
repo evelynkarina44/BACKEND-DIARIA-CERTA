@@ -1,6 +1,7 @@
 // APOIO POLLYANA — catalogProfiles() consulta cadastro; bookingCandidates() verifica agenda.
 // Mostrar apenas se precisar detalhar o acesso ao banco nas etapas 2 e 4 do roteiro.
 import prisma from '../../lib/prisma.js';
+import { availableAccountWhere } from '../auth/accountAccess.js';
 import { currentLocalDate } from '../../utils/dateTime.js';
 import { calculateDistanceKm, coordinatesByCep } from '../location/CepGeocodingService.js';
 import { ForbiddenError } from '../../errors/index.js';
@@ -11,7 +12,7 @@ import { serviceSearchTerms } from '../../utils/serviceSearchTerms.js';
 function bookingProfileWhere({ serviceIds, userId, comboId }) {
   return {
     id_usuario: { not: userId },
-    usuario: { ativo: true, bloqueado: false },
+    usuario: availableAccountWhere(),
     AND: serviceIds.map((id_servico) => ({ diarista_servico: { some: { id_servico, ativo: true } } })),
     ...(comboId ? { combo_base: { some: { id_combo_base: comboId, ativo: true } } } : {}),
   };
@@ -54,6 +55,7 @@ function publicProfileInclude() {
     take: 20,
     select: {
       id_avaliacao: true,
+      anexos: { select: { id_anexo: true, nome: true, tipo: true, mime: true, criado_em: true } },
       nota: true,
       comentario: true,
       data_avaliacao: true,
@@ -86,7 +88,7 @@ export class DiaristaSearchService {
 
   // APOIO | ETAPA 2 — Selecionar dados públicos e ofertas ativas; nomes ambíguos exigem esclarecimento.
   async catalogProfiles({ nome, id }) {
-    const base = { usuario: { ativo: true, bloqueado: false } };
+    const base = { usuario: availableAccountWhere() };
     const select = {
       id_diarista: true, descricao: true, avaliacao_media: true,
       usuario: { select: { nome: true } },
@@ -185,7 +187,7 @@ export class DiaristaSearchService {
 
     const where = {
       ...(auth?.id_usuario ? { id_usuario: { not: auth.id_usuario } } : {}),
-      usuario: { ativo: true, bloqueado: false, ...(nome ? { nome: { contains: nome } } : {}) },
+      usuario: { ...availableAccountWhere(), ...(nome ? { nome: { contains: nome } } : {}) },
       ...(avaliacao_min !== undefined ? { avaliacao_media: { gte: avaliacao_min } } : {}),
       ...(bairro || cidade || estado ? { endereco: { some: { ...(bairro ? { bairro: { contains: bairro } } : {}), ...(cidade ? { cidade: { contains: cidade } } : {}), ...(estado ? { estado } : {}) } } } : {}),
       ...(serviceTerms.length ? {

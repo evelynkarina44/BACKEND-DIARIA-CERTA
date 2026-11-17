@@ -6,6 +6,7 @@ import { createAgendamentoSchema } from '../src/schemas/apiSchemas.js';
 function scenario() {
   const data = createAgendamentoSchema.parse({ id_diarista: 8, id_endereco: 2, data_agendamento: '2099-01-01', horario_inicio: '09:00', horario_fim: '10:00', qtd_comodos: 4, tamanho_residencia: 'media', servicos: [{ id_diarista_servico: 3 }] });
   const database = {
+    $queryRaw: async () => [],
     diarista: { findUnique: async () => ({ id_usuario: 12, usuario: { ativo: true, bloqueado: false }, qtd_max_comodos: 6, combo_base: [] }) },
     endereco: { findUnique: async () => ({ id_cliente: 2, qtd_comodos: 4 }) },
     diarista_servico: { findMany: async () => [{ id_diarista_servico: 3, id_diarista: 8, id_servico: 4, ativo: true, preco: 100 }] },

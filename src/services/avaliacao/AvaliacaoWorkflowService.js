@@ -1,6 +1,7 @@
 import prisma from '../../lib/prisma.js';
 import { ConflictError, ForbiddenError, NotFoundError } from '../../errors/index.js';
 import { canCustomerReview } from './reviewPolicy.js';
+import { attachmentSelect } from '../media/attachmentMedia.js';
 
 function authorType(appointment, auth) {
   if (appointment.id_cliente === auth?.id_cliente) return 'Cliente';
@@ -40,7 +41,7 @@ export class AvaliacaoWorkflowService {
     const [reviews, aggregate] = await Promise.all([
       this.database.avaliacao.findMany({ where, skip: (page - 1) * limit, take: limit,
         orderBy: [{ data_avaliacao: 'desc' }, { id_avaliacao: 'desc' }],
-        select: { id_avaliacao: true, nota: true, comentario: true, data_avaliacao: true, anonima: true,
+        select: { anexos: { select: attachmentSelect }, id_avaliacao: true, nota: true, comentario: true, data_avaliacao: true, anonima: true,
           cliente: { select: { usuario: { select: { nome: true } } } },
           diarista: { select: { usuario: { select: { nome: true } } } },
         },
@@ -49,7 +50,7 @@ export class AvaliacaoWorkflowService {
     ]);
     const total = aggregate._count._all;
     return { data: reviews.map(review => ({ id_avaliacao: review.id_avaliacao,
-      nota: Number(review.nota), comentario: review.comentario, data_avaliacao: review.data_avaliacao,
+      nota: Number(review.nota), comentario: review.comentario, data_avaliacao: review.data_avaliacao, anexos: review.anexos ?? [],
       autor: review.anonima ? 'Avaliação anônima' : (customer ? review.diarista : review.cliente)?.usuario?.nome ?? 'Usuário',
     })), media: aggregate._avg.nota === null ? null : Number(aggregate._avg.nota),
     pagination: { page, limit, total, pages: Math.ceil(total / limit) } };
@@ -94,14 +95,14 @@ export class AvaliacaoWorkflowService {
       ? { OR: [{ id_cliente: auth.id_cliente ?? -1 }, { id_diarista: auth.id_diarista ?? -1 }] }
       : { autor_tipo: 'Cliente', comentario_publico: true };
     const [reviews, total] = await Promise.all([
-      prisma.avaliacao.findMany({ where, skip: (page - 1) * limit, take: limit, orderBy: { data_avaliacao: 'desc' } }),
+      prisma.avaliacao.findMany({ where, include: { anexos: { select: attachmentSelect } }, skip: (page - 1) * limit, take: limit, orderBy: { data_avaliacao: 'desc' } }),
       prisma.avaliacao.count({ where }),
     ]);
     return { data: reviews.map(present), pagination: { page, limit, total, pages: Math.ceil(total / limit) } };
   }
 
   async find(id, auth) {
-    const review = await prisma.avaliacao.findUnique({ where: { id_avaliacao: Number(id) } });
+    const review = await prisma.avaliacao.findUnique({ where: { id_avaliacao: Number(id) }, include: { anexos: { select: attachmentSelect } } });
     if (!review) return null;
     if (!review.comentario_publico && review.id_cliente !== auth?.id_cliente && review.id_diarista !== auth?.id_diarista) {
       throw new ForbiddenError('Avaliação privada');

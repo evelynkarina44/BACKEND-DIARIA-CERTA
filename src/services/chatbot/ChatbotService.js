@@ -2,6 +2,7 @@
 // Mostrar message() e seus três caminhos; depois confirm() para a ação explícita do cliente.
 // Leitura: message() -> resolveMessage() -> answerQuestion() ou booking.propose() -> saveExchange().
 import prisma from '../../lib/prisma.js';
+import { availableAccountWhere } from '../auth/accountAccess.js';
 import { ChatbotRepository } from '../../repositories/chatbotRepository.js';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../../errors/index.js';
 import { ChatbotBookingService } from './ChatbotBookingService.js';
@@ -86,7 +87,7 @@ export class ChatbotService {
     if (repeated) return publicConversation(conversation);
     if (conversation.versao >= 200) throw new BadRequestError('Esta conversa atingiu o limite de mensagens. Inicie uma nova conversa.');
     const catalog = await this.database.servico.findMany({
-      where: { diarista_servico: { some: { ativo: true, diarista: { usuario: { ativo: true, bloqueado: false } } } } },
+      where: { diarista_servico: { some: { ativo: true, diarista: { usuario: availableAccountWhere() } } } },
       select: { id_servico: true, nome_servico: true, descricao: true }, orderBy: { nome_servico: 'asc' },
     });
     // APOIO | PESSOA 3 | ETAPA 3 — Até 6 mensagens recentes + estado estruturado; não é treinamento.

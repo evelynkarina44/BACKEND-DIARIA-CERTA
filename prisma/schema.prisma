@@ -60,6 +60,7 @@ model agendamento_servico {
 }
 
 model avaliacao {
+  anexos             avaliacao_anexo[]
   id_avaliacao       Int                  @id @default(autoincrement())
   id_agendamento     Int
   id_cliente         Int
@@ -180,6 +181,10 @@ model combo_servico {
 }
 
 model denuncia {
+  anexos denuncia_anexo[]
+  status denuncia_status @default(Pendente)
+  versao Int @default(0)
+  analises denuncia_analise[]
   id_denuncia                                      Int             @id @default(autoincrement())
   id_usuario_denunciante                           Int
   id_usuario_denunciado                            Int
@@ -300,6 +305,11 @@ model servico {
 }
 
 model usuario {
+  suspenso_ate DateTime? @db.Timestamp(3)
+  excluido_em DateTime? @db.Timestamp(3)
+  versao_sessao Int @default(0)
+  administrador Boolean @default(false)
+  analises_administrativas denuncia_analise[]
   id_usuario                                        Int          @id @default(autoincrement())
   nome                                              String       @db.VarChar(100)
   email                                             String       @unique(map: "email") @db.VarChar(100)
@@ -384,6 +394,57 @@ enum usuario_tipo {
   CLIENTE
   DIARISTA
   AMBOS
+}
+
+enum denuncia_status {
+  Pendente
+  EmAnalise
+  Resolvida
+  Arquivada
+}
+
+model denuncia_analise {
+  acao String @default("Nenhuma") @db.VarChar(20)
+  dias_suspensao Int?
+  suspenso_ate DateTime? @db.Timestamp(3)
+  id_analise Int @id @default(autoincrement())
+  id_denuncia Int
+  id_administrador Int
+  status denuncia_status
+  observacao String @db.Text
+  criado_em DateTime @default(now()) @db.Timestamp(3)
+  denuncia denuncia @relation(fields: [id_denuncia], references: [id_denuncia], onDelete: Restrict)
+  administrador usuario @relation(fields: [id_administrador], references: [id_usuario], onDelete: Restrict)
+  @@index([id_denuncia, criado_em])
+  @@index([id_administrador])
+}
+
+model denuncia_anexo {
+  tipo String @default("image") @db.VarChar(10)
+  mime String @default("image/jpeg") @db.VarChar(40)
+  chave_cliente String? @db.VarChar(80)
+  id_anexo String @id @default(uuid()) @db.Char(36)
+  id_denuncia Int
+  nome String @db.VarChar(100)
+  conteudo Bytes @db.MediumBlob
+  criado_em DateTime @default(now()) @db.Timestamp(3)
+  denuncia denuncia @relation(fields: [id_denuncia], references: [id_denuncia], onDelete: Cascade)
+  @@index([id_denuncia])
+  @@unique([id_denuncia, chave_cliente])
+}
+
+model avaliacao_anexo {
+  id_anexo String @id @default(uuid()) @db.Char(36)
+  id_avaliacao Int
+  nome String @db.VarChar(100)
+  tipo String @db.VarChar(10)
+  mime String @db.VarChar(40)
+  chave_cliente String? @db.VarChar(80)
+  conteudo Bytes @db.MediumBlob
+  criado_em DateTime @default(now()) @db.Timestamp(3)
+  avaliacao avaliacao @relation(fields: [id_avaliacao], references: [id_avaliacao], onDelete: Cascade)
+  @@index([id_avaliacao])
+  @@unique([id_avaliacao, chave_cliente])
 }
 
 enum ocorrencia_agendamento_motivo {

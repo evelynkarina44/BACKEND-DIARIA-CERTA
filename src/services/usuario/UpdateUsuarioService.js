@@ -8,6 +8,7 @@ export class UpdateUsuarioService {
   async execute(id_usuario, data, auth) {
     if (Number(id_usuario) !== auth?.id_usuario) throw new ForbiddenError('Acesso permitido apenas ao próprio usuário');
     const changes = { ...data };
+    delete changes.administrador;
     if (changes.email) {
       changes.email = changes.email.toLowerCase();
       const existing = await this.repository.findByEmail(changes.email);

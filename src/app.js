@@ -23,6 +23,7 @@ import checkinCheckoutRoutes from './routes/checkinCheckoutRoutes.js';
 import avaliacaoRoutes from './routes/avaliacaoRoutes.js';
 import favoritoRoutes from './routes/favoritoRoutes.js';
 import denunciaRoutes from './routes/denunciaRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
 import ocorrenciaRoutes from './routes/ocorrenciaAgendamentoRoutes.js';
 import { errorHandler, notFoundHandler } from './middlewares/errorHandler.js';
 
@@ -83,6 +84,7 @@ app.use('/api/checkin-checkout', checkinCheckoutRoutes);
 app.use('/api/avaliacao', avaliacaoRoutes);
 app.use('/api/favorito', favoritoRoutes);
 app.use('/api/denuncia', denunciaRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/api/ocorrencia', ocorrenciaRoutes);
 
 app.use(notFoundHandler);
