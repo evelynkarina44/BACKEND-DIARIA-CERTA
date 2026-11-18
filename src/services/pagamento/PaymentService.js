@@ -3,6 +3,7 @@ import { BadRequestError, ConflictError, ForbiddenError, NotFoundError, External
 import { MercadoPagoClient } from './MercadoPagoClient.js';
 import { assertPayable, cents, installmentStatus, splitPayment } from './paymentPolicy.js';
 import { canCustomerReview } from '../avaliacao/reviewPolicy.js';
+import { refundablePaidCents } from '../denuncia/refundRequestPolicy.js';
 import { checkinExpirationInfo, checkinClosed } from '../agendamento/checkinExpirationPolicy.js';
 
 const include = {
@@ -47,6 +48,7 @@ export class PaymentService {
     });
     return {
       id_agendamento: appointment.id_agendamento,
+      possui_valor_pago_reembolsavel: refundablePaidCents(appointment) > 0,
       status_agendamento: appointment.status,
       ...checkinExpirationInfo(appointment),
       valor_total: (amounts.entrada + amounts.saldo) / 100,

@@ -54,6 +54,7 @@ export const pagamentoSchemas = {
     confirmacao_cliente_limite_em: { type: 'string', format: 'date-time', nullable: true },
     moeda: { type: 'string', enum: ['BRL'] }, quitado: { type: 'boolean' }, parcelas: { type: 'array', items: ref('PagamentoParcela') },
     pode_avaliar: { type: 'boolean', description: 'Diária concluída, duas parcelas pagas e ainda não avaliada pelo cliente.' },
+    possui_valor_pago_reembolsavel: { type: 'boolean', description: 'Há pagamentos aprovados, líquidos de estornos e fora da fila de devolução. Não aprova nem executa reembolso.' },
     pode_avaliar_cliente: { type: 'boolean', description: 'Checkout concluído e cliente ainda não avaliado pela diarista; não exige saldo pago.' },
     avaliacao_diarista: { type: 'object', nullable: true, properties: { id_avaliacao: { type: 'integer' }, nota: { type: 'number' }, comentario: { type: 'string', nullable: true } } },
     avaliacao_cliente: { type: 'object', nullable: true, properties: { id_avaliacao: { type: 'integer' }, nota: { type: 'number' }, comentario: { type: 'string', nullable: true } } },

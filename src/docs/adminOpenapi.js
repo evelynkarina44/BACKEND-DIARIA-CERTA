@@ -11,6 +11,7 @@ export const adminSchemas = {
     analises: { type: 'array', description: 'Histórico interno presente somente no detalhamento.', items: { type: 'object', properties: { status, observacao: { type: 'string' }, criado_em: { type: 'string', format: 'date-time' }, administrador: { type: 'object' } } } },
   } },
   AdminAnalise: { type: 'object', additionalProperties: false, required: ['status', 'observacao', 'versao'], properties: {
+    decisao_reembolso: { type: 'string', enum: ['EmAnalise','Aprovado','Negado'], description: 'Decisão administrativa, sem execução financeira. Obrigatória para concluir pedido de reembolso. Arquivamento exige Negado.' },
     status: { type: 'string', enum: ['EmAnalise', 'Resolvida', 'Arquivada'] }, observacao: { type: 'string', minLength: 1, maxLength: 2000 }, versao: { type: 'integer', minimum: 0 },
     acao: { type: 'string', enum: ['Nenhuma','Suspender','Excluir'], default: 'Nenhuma' }, dias_suspensao: { type: 'integer', minimum: 1, maximum: 365 },
   } },
@@ -22,6 +23,7 @@ export const adminPaths = {
   '/api/denuncia/{id}/anexos': { post: { ...common, tags:['Denúncias'],description:'Somente o denunciante pode enviar até três imagens enquanto a denúncia estiver pendente. Arquivos de até 5 MB, JPG/PNG/WebP, reencodados e privados.',summary:'Anexar imagem à denúncia',operationId:'anexarImagemDenuncia',parameters:[id],requestBody:{required:true,content:{'application/octet-stream':{schema:{type:'string',format:'binary'}}}},responses:{201:response({type:'object',properties:{id_anexo:{type:'string',format:'uuid'}}}),...errors,409:{description:'Denúncia alterada ou em análise.'},413:{description:'Imagem maior que 5 MB.'},415:{description:'Tipo de conteúdo inválido.'}} } },
   '/api/denuncia/{id}/anexos/{anexo}': { get: { ...common,tags:['Denúncias'],description:'Acesso exclusivo do denunciante e do administrador. Nunca é servido por URL pública.',summary:'Visualizar imagem privada da denúncia',operationId:'verImagemDenuncia',parameters:[id,{name:'anexo',in:'path',required:true,schema:{type:'string',format:'uuid'}}],responses:{200:response({type:'object',properties:{dataUrl:{type:'string'},id_anexo:{type:'string'}}}),...errors,404:{description:'Imagem não encontrada.'}} } },
   '/api/admin/denuncias': { get: { ...common, summary: 'Listar denúncias para análise', operationId: 'adminListarDenuncias', parameters: [
+    { name: 'somente_reembolso', in: 'query', schema: { type: 'boolean' }, description: 'Mostrar somente denúncias com pedido de reembolso.' },
     { name: 'page', in: 'query', schema: { type: 'integer', minimum: 1, default: 1 } },
     { name: 'limit', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 100, default: 20 } },
     { name: 'status', in: 'query', schema: status }, { name: 'busca', in: 'query', schema: { type: 'string', maxLength: 100 } },

@@ -808,6 +808,8 @@ const avaliacaoCreate = objectSchema({
 }, ['id_agendamento', 'nota']);
 
 const denunciaCreate = objectSchema({
+  id_agendamento: { ...positiveInteger, description: 'Obrigatório para reembolso; a API verifica os participantes da diária.' },
+  solicita_reembolso: { type: 'boolean', default: false, description: 'Pedido administrativo do cliente ou diarista participante, referente aos valores pagos pelo cliente. Exige diária e descrição; não efetua estorno.' },
   id_usuario_denunciado: positiveInteger,
   motivo: { type: 'string', enum: ['spam', 'fraude', 'comportamento_inadequado', 'outro'] },
   descricao: nullableString(2000),
@@ -942,8 +944,10 @@ components.schemas = {
   FavoritoCreate: objectSchema({ id_diarista: positiveInteger }, ['id_diarista']),
   Favorito: objectSchema({ id_favorito: positiveInteger, id_cliente: positiveInteger, id_diarista: positiveInteger }, ['id_favorito', 'id_cliente', 'id_diarista'], { additionalProperties: true }),
   DenunciaCreate: denunciaCreate,
-  DenunciaUpdate: partialSchema(denunciaCreate, ['id_usuario_denunciado']),
+  DenunciaUpdate: partialSchema(denunciaCreate, ['id_usuario_denunciado', 'id_agendamento', 'solicita_reembolso']),
   Denuncia: objectSchema({
+    reembolso_status: { type: 'string', enum: ['NaoSolicitado','Pendente','EmAnalise','Aprovado','Negado'] },
+    reembolso_valor_pago_centavos: { type: 'integer', nullable: true, description: 'Referência de valores pagos ao solicitar; não é confirmação de estorno.' },
     id_denuncia: positiveInteger, id_usuario_denunciante: positiveInteger, ...denunciaCreate.properties, data_denuncia: { type: 'string', format: 'date-time' },
   }, ['id_denuncia', 'id_usuario_denunciante', 'id_usuario_denunciado', 'motivo', 'data_denuncia'], { additionalProperties: true }),
   OcorrenciaCreate: ocorrenciaCreate,

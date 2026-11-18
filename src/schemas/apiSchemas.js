@@ -216,14 +216,16 @@ export const saveMonthlyAvailabilitySchema = z.object({
 export const createFavoritoSchema = z.object({ id_diarista: positiveId });
 
 export const createDenunciaSchema = z.object({
+  id_agendamento: positiveId.optional(),
+  solicita_reembolso: z.boolean().default(false),
   id_usuario_denunciado: positiveId,
   motivo: z.enum(['spam', 'fraude', 'comportamento_inadequado', 'outro']),
   descricao: nullableText(2000),
-});
+}).strict().refine(d => !d.solicita_reembolso || Boolean(d.id_agendamento && d.descricao?.trim()), 'Informe a diária e descreva o motivo do reembolso.');
 export const updateDenunciaSchema = z.object({
   motivo: z.enum(['spam', 'fraude', 'comportamento_inadequado', 'outro']).optional(),
   descricao: nullableText(2000),
-}).refine((data) => Object.keys(data).length > 0, 'Informe ao menos um campo');
+}).strict().refine((data) => Object.keys(data).length > 0, 'Informe ao menos um campo');
 
 export const createOcorrenciaSchema = z.object({
   id_agendamento: positiveId,

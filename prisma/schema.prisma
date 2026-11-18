@@ -8,6 +8,7 @@ datasource db {
 }
 
 model agendamento {
+  denuncias             denuncia[]
   id_agendamento         Int                      @id @default(autoincrement())
   numero_diarista        Int
   id_cliente             Int
@@ -181,6 +182,11 @@ model combo_servico {
 }
 
 model denuncia {
+  id_agendamento Int?
+  solicita_reembolso Boolean @default(false)
+  reembolso_status String @default("NaoSolicitado") @db.VarChar(20)
+  reembolso_valor_pago_centavos Int?
+  agendamento agendamento? @relation(fields: [id_agendamento], references: [id_agendamento], onDelete: Restrict)
   anexos denuncia_anexo[]
   status denuncia_status @default(Pendente)
   versao Int @default(0)
@@ -196,6 +202,7 @@ model denuncia {
 
   @@index([id_usuario_denunciado], map: "fk_denuncia_denunciado")
   @@index([id_usuario_denunciante], map: "fk_denuncia_denunciante")
+  @@index([id_agendamento, solicita_reembolso])
 }
 
 model diarista {
@@ -404,6 +411,7 @@ enum denuncia_status {
 }
 
 model denuncia_analise {
+  decisao_reembolso String? @db.VarChar(20)
   acao String @default("Nenhuma") @db.VarChar(20)
   dias_suspensao Int?
   suspenso_ate DateTime? @db.Timestamp(3)

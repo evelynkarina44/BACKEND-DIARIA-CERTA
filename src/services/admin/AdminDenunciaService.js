@@ -17,9 +17,9 @@ export function requireAdmin(auth) {
 }
 export class AdminDenunciaService {
   constructor(database = prisma) { this.database = database; }
-  async list({ page = 1, limit = 10, status, busca = '' }, auth) {
+  async list({ page = 1, limit = 10, status, busca = '', somente_reembolso = false }, auth) {
     requireAdmin(auth);
-    const where = { ...(status ? { status } : {}), ...(busca ? { OR: [
+    const where = { ...(somente_reembolso ? { solicita_reembolso: true } : {}), ...(status ? { status } : {}), ...(busca ? { OR: [
       { descricao: { contains: busca } },
       { usuario_denuncia_id_usuario_denuncianteTousuario: { is: { nome: { contains: busca } } } },
       { usuario_denuncia_id_usuario_denunciadoTousuario: { is: { nome: { contains: busca } } } },
@@ -34,13 +34,14 @@ export class AdminDenunciaService {
   async detail(id, auth, database = this.database) {
     requireAdmin(auth);
     const row = await database.denuncia.findUnique({ where: { id_denuncia: Number(id) }, include: { ...include,
+      agendamento: { select: { id_agendamento: true, data_agendamento: true, valor_estimado: true, status: true } },
       anexos: { select: attachmentSelect, orderBy: { criado_em: 'asc' } },
       analises: { orderBy: [{ criado_em: 'desc' }, { id_analise: 'desc' }], include: { administrador: { select: { id_usuario: true, nome: true } } } },
     } });
     if (!row) throw new NotFoundError('Denúncia não encontrada.');
     return present(row);
   }
-  async analyze(id, { status, observacao, versao, acao = 'Nenhuma', dias_suspensao }, auth) {
+  async analyze(id, { status, observacao, versao, acao = 'Nenhuma', dias_suspensao, decisao_reembolso }, auth) {
     requireAdmin(auth);
     if (!denunciaStates.includes(status) || status === 'Pendente') throw new BadRequestError('Escolha Em análise, Resolvida ou Arquivada.');
     if (!observacao?.trim() || observacao.trim().length > 2000) throw new BadRequestError('Registre uma observação de até 2000 caracteres.');
@@ -48,10 +49,16 @@ export class AdminDenunciaService {
     if (acao !== 'Nenhuma' && status !== 'Resolvida') throw new BadRequestError('Medidas só podem ser aplicadas ao concluir a denúncia.');
     if (acao === 'Suspender' && (!Number.isInteger(dias_suspensao) || dias_suspensao < 1 || dias_suspensao > 365)) throw new BadRequestError('Informe de 1 a 365 dias de suspensão.');
     return this.database.$transaction(async tx => {
-      const current = await tx.denuncia.findUnique({ where: { id_denuncia: Number(id) }, select: { status: true, id_usuario_denunciado: true } });
+      const current = await tx.denuncia.findUnique({ where: { id_denuncia: Number(id) }, select: { status: true, id_usuario_denunciado: true, solicita_reembolso: true, reembolso_status: true } });
       if (!current) throw new NotFoundError('Denúncia não encontrada.');
       if (['Resolvida','Arquivada'].includes(current.status)) throw new ConflictError('Esta denúncia já possui uma decisão final.');
-      const updated = await tx.denuncia.updateMany({ where: { id_denuncia: Number(id), versao }, data: { status, versao: { increment: 1 } } });
+      let refundDecision = null;
+      if (current.solicita_reembolso) {
+        refundDecision = decisao_reembolso ?? 'EmAnalise';
+        const allowed = status === 'Resolvida' ? ['Aprovado', 'Negado'] : status === 'Arquivada' ? ['Negado'] : ['EmAnalise'];
+        if (!allowed.includes(refundDecision)) throw new BadRequestError('Registre uma decisão sobre o reembolso antes de concluir ou arquivar a denúncia.');
+      } else if (decisao_reembolso !== undefined) throw new BadRequestError('Esta denúncia não possui solicitação de reembolso.');
+      const updated = await tx.denuncia.updateMany({ where: { id_denuncia: Number(id), versao }, data: { status, versao: { increment: 1 }, ...(refundDecision ? { reembolso_status: refundDecision } : {}) } });
       if (!updated.count) throw new ConflictError('A denúncia foi alterada ou removida. Atualize antes de salvar.');
       let until = null;
       if (acao !== 'Nenhuma') {
@@ -71,7 +78,7 @@ export class AdminDenunciaService {
         } });
         if (!changed.count) throw new ConflictError('A conta foi alterada por outro administrador. Atualize a denúncia.');
       }
-      await tx.denuncia_analise.create({ data: { id_denuncia: Number(id), id_administrador: auth.id_usuario, status, observacao: observacao.trim(), acao, dias_suspensao: acao === 'Suspender' ? dias_suspensao : null, suspenso_ate: until } });
+      await tx.denuncia_analise.create({ data: { id_denuncia: Number(id), id_administrador: auth.id_usuario, status, observacao: observacao.trim(), acao, dias_suspensao: acao === 'Suspender' ? dias_suspensao : null, suspenso_ate: until, decisao_reembolso: refundDecision } });
       return this.detail(id, auth, tx);
     }, { isolationLevel: 'ReadCommitted' });
   }
