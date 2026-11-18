@@ -602,9 +602,22 @@ addCrud({
   security: { list: 'role', find: 'role', create: 'role', delete: 'role' },
   allow: { list: true, find: true, create: true, update: false, delete: true },
   descriptions: {
-    list: 'Lista favoritos do cliente autenticado.',
-    create: 'O id_cliente é derivado do token; o corpo informa somente a diarista.',
-    delete: 'Somente o cliente proprietário pode remover o favorito.',
+    list: 'Lista diaristas favoritas do cliente autenticado. Clientes favoritos da diarista usam /api/favorito/clientes, em lista independente.',
+    create: 'O id_cliente é derivado do token; o corpo informa somente id_diarista.',
+    delete: 'Somente o cliente proprietário pode remover o favorito. Não altera a preferência da outra pessoa.',
+  },
+});
+
+addCrud({
+  base: '/api/favorito/clientes', tag: 'Favoritos', singular: 'cliente favorito', plural: 'clientes favoritos', resource: 'FavoritoCliente',
+  createSchema: 'FavoritoClienteCreate', paginated: true,
+  security: { list: 'role', find: 'role', create: 'role', delete: 'role' },
+  allow: { list: true, find: true, create: true, update: false, delete: true },
+  descriptions: {
+    list: 'Exige perfil DIARISTA. Lista somente clientes favoritados pela diarista autenticada, expondo apenas nome e foto, sem CPF, telefone, e-mail ou endereço.',
+    create: 'Exige perfil DIARISTA e somente id_cliente no corpo. Deve existir uma diária entre os perfis; conta indisponível e próprio usuário não podem ser favoritados. Repetições são idempotentes.',
+    find: 'Somente a diarista proprietária acessa este cliente favorito. Os IDs e a lista são independentes dos favoritos do cliente.',
+    delete: 'Remove somente o favorito da diarista autenticada; não altera os favoritos do cliente.',
   },
 });
 
@@ -942,6 +955,8 @@ components.schemas = {
     anonima: { type: 'boolean' }, data_avaliacao: { type: 'string', format: 'date-time' },
   }, ['id_avaliacao', 'id_agendamento', 'id_cliente', 'id_diarista', 'nota', 'autor_tipo', 'anonima'], { additionalProperties: true }),
   FavoritoCreate: objectSchema({ id_diarista: positiveInteger }, ['id_diarista']),
+  FavoritoClienteCreate: objectSchema({ id_cliente: positiveInteger }, ['id_cliente']),
+  FavoritoCliente: objectSchema({ id_favorito: positiveInteger, id_cliente: positiveInteger, id_diarista: positiveInteger, cliente: { type: 'object', description: 'Somente ID do cliente, nome e foto.' } }, ['id_favorito','id_cliente','id_diarista'], { additionalProperties: true }),
   Favorito: objectSchema({ id_favorito: positiveInteger, id_cliente: positiveInteger, id_diarista: positiveInteger }, ['id_favorito', 'id_cliente', 'id_diarista'], { additionalProperties: true }),
   DenunciaCreate: denunciaCreate,
   DenunciaUpdate: partialSchema(denunciaCreate, ['id_usuario_denunciado', 'id_agendamento', 'solicita_reembolso']),

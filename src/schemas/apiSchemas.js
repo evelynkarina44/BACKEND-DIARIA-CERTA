@@ -213,7 +213,8 @@ export const saveMonthlyAvailabilitySchema = z.object({
   }
 });
 
-export const createFavoritoSchema = z.object({ id_diarista: positiveId });
+export const createFavoritoSchema = z.object({ id_diarista: positiveId }).strict();
+export const createFavoritoClienteSchema = z.object({ id_cliente: positiveId }).strict();
 
 export const createDenunciaSchema = z.object({
   id_agendamento: positiveId.optional(),

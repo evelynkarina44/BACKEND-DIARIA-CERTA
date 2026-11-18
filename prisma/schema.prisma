@@ -134,6 +134,7 @@ model pagamento_transacao {
 }
 
 model cliente {
+  favoritado_por_diaristas favorito_cliente[]
   id_cliente      Int                  @id @default(autoincrement())
   id_usuario      Int                  @unique(map: "uq_cliente_usuario")
   data_nascimento DateTime             @db.Date
@@ -206,6 +207,7 @@ model denuncia {
 }
 
 model diarista {
+  clientes_favoritos favorito_cliente[]
   ultimo_numero_diaria    Int                        @default(0)
   id_diarista              Int                        @id @default(autoincrement())
   id_usuario               Int                        @unique(map: "uq_diarista_usuario")
@@ -290,6 +292,16 @@ model favorito {
   @@unique([id_cliente, id_diarista], map: "uq_favorito_cliente_diarista")
   @@index([id_cliente], map: "fk_favorito_cliente")
   @@index([id_diarista], map: "fk_favorito_diarista")
+}
+
+model favorito_cliente {
+  id_favorito Int @id @default(autoincrement())
+  id_cliente Int
+  id_diarista Int
+  cliente cliente @relation(fields: [id_cliente], references: [id_cliente], onDelete: Restrict)
+  diarista diarista @relation(fields: [id_diarista], references: [id_diarista], onDelete: Restrict)
+  @@unique([id_diarista, id_cliente], map: "uq_favorito_diarista_cliente")
+  @@index([id_cliente])
 }
 
 model ocorrencia_agendamento {
