@@ -162,6 +162,8 @@ export const createDiaristaServicoSchema = z.object({
   faz_parte_combo_base: z.boolean().nullable().optional(),
 });
 export const updateDiaristaServicoSchema = z.object({
+  nome_servico: serviceName.optional(),
+  descricao: nullableText(2000),
   preco: money.optional(),
   faz_parte_combo_base: z.boolean().nullable().optional(),
 }).refine((data) => Object.keys(data).length > 0, 'Informe ao menos um campo');

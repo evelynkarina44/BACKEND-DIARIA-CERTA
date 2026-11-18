@@ -899,7 +899,7 @@ components.schemas = {
   ServicoUpdate: partialSchema(servicoCreate),
   Servico: objectSchema({ id_servico: positiveInteger, ...servicoCreate.properties }, ['id_servico', 'nome_servico'], { additionalProperties: true }),
   DiaristaServicoCreate: diaristaServicoCreate,
-  DiaristaServicoUpdate: objectSchema({ preco: money, faz_parte_combo_base: { type: 'boolean', nullable: true } }, [], { minProperties: 1 }),
+  DiaristaServicoUpdate: objectSchema({ ...servicoCreate.properties, preco: money, faz_parte_combo_base: { type: 'boolean', nullable: true } }, [], { minProperties: 1, description: 'Edita nome, descrição e preço atomicamente, sem alterar serviços de outras diaristas.' }),
   DiaristaServico: objectSchema({ id_diarista_servico: positiveInteger, ...diaristaServicoCreate.properties }, ['id_diarista_servico', 'id_diarista', 'id_servico', 'preco'], { additionalProperties: true }),
   ComboBaseCreate: comboBaseCreate,
   ComboBaseUpdate: partialSchema(comboBaseCreate, ['id_diarista']),
